@@ -71,6 +71,18 @@ export class BackendStack extends cdk.Stack {
       responseMappingTemplate: appsync.MappingTemplate.dynamoDbResultItem(),
     });
 
+        // Resolver: submitVote mutation — atomically increments vote count for an option
+    pollsDataSource.createResolver('SubmitVoteResolver', {
+      typeName: 'Mutation',
+      fieldName: 'submitVote',
+      requestMappingTemplate: appsync.MappingTemplate.fromFile(
+        path.join(__dirname, '../resolvers/submitVote.req.vtl')
+      ),
+      responseMappingTemplate: appsync.MappingTemplate.fromFile(
+        path.join(__dirname, '../resolvers/submitVote.res.vtl')
+      ),
+    });
+    
         // Output the API URL and Key so they're easy to find after each deploy
     new cdk.CfnOutput(this, 'GraphQLApiUrl', {
       value: api.graphqlUrl,

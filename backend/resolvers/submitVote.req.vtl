@@ -1,0 +1,17 @@
+#set($option = $ctx.args.option)
+{
+    "version": "2018-05-29",
+    "operation": "UpdateItem",
+    "key": {
+        "pollId": $util.dynamodb.toDynamoDBJson($ctx.args.pollId)
+    },
+    "update": {
+        "expression": "ADD voteCounts.#opt :inc",
+        "expressionNames": {
+            "#opt": $util.toJson($option)
+        },
+        "expressionValues": {
+            ":inc": $util.dynamodb.toDynamoDBJson(1)
+        }
+    }
+}
