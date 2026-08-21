@@ -1,0 +1,29 @@
+type Poll {
+  pollId: ID!
+  hostId: String!
+  question: String!
+  options: [String!]!
+  voteCounts: AWSJSON!
+  status: String!
+  createdAt: AWSTimestamp!
+}
+
+type Query {
+  getPoll(pollId: ID!): Poll
+}
+
+type Mutation {
+  createPoll(question: String!, options: [String!]!): Poll!
+  submitVote(pollId: ID!, option: String!): Poll!
+}
+
+type Subscription {
+  onVoteUpdate(pollId: ID!): Poll
+    @aws_subscribe(mutations: ["submitVote"])
+}
+
+schema {
+  query: Query
+  mutation: Mutation
+  subscription: Subscription
+}
