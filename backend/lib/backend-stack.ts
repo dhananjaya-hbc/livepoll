@@ -54,6 +54,23 @@ export class BackendStack extends cdk.Stack {
       responseMappingTemplate: appsync.MappingTemplate.dynamoDbResultItem(),
     });
 
+        // Resolver: createPoll mutation — creates a new poll with a generated ID
+    pollsDataSource.createResolver('CreatePollResolver', {
+      typeName: 'Mutation',
+      fieldName: 'createPoll',
+      requestMappingTemplate: appsync.MappingTemplate.dynamoDbPutItem(
+        appsync.PrimaryKey.partition('pollId').auto(),
+        appsync.Values.projecting()
+          .attribute('hostId').is('"anonymous-host"')
+          .attribute('question').is('$ctx.args.question')
+          .attribute('options').is('$ctx.args.options')
+          .attribute('voteCounts').is('{}')
+          .attribute('status').is('"open"')
+          .attribute('createdAt').is('$util.time.nowEpochSeconds()')
+      ),
+      responseMappingTemplate: appsync.MappingTemplate.dynamoDbResultItem(),
+    });
+
         // Output the API URL and Key so they're easy to find after each deploy
     new cdk.CfnOutput(this, 'GraphQLApiUrl', {
       value: api.graphqlUrl,
