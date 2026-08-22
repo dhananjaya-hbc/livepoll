@@ -128,8 +128,25 @@ function PollView({ pollId }: PollViewProps) {
     }
 
     if (loading) {
-        return <p style={{ padding: '4rem', textAlign: 'center' }}>Loading…</p>
-    }
+    return (
+        <div style={{ maxWidth: '640px', margin: '0 auto', padding: '4rem 1.5rem' }}>
+            <p className="mono-label" style={{ marginBottom: '1rem', color: '#525252' }}>
+                Loading
+            </p>
+            <div
+                style={{
+                    height: '3.5rem',
+                    width: '70%',
+                    background: '#F5F5F5',
+                    marginBottom: '2.5rem',
+                }}
+            />
+            <div style={{ height: '3.5rem', border: '2px solid #E5E5E5', marginBottom: '0.75rem' }} />
+            <div style={{ height: '3.5rem', border: '2px solid #E5E5E5', marginBottom: '0.75rem' }} />
+            <div style={{ height: '3.5rem', border: '2px solid #E5E5E5' }} />
+        </div>
+    )
+}
 
     if (notFound) {
         return (
