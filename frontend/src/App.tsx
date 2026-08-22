@@ -1,42 +1,24 @@
-import { useEffect, useState } from 'react'
-import { generateClient } from 'aws-amplify/api'
-
-const getPollQuery = /* GraphQL */ `
-  query GetPoll($pollId: ID!) {
-    getPoll(pollId: $pollId) {
-      pollId
-      question
-      options
-      voteCounts
-      status
-    }
-  }
-`
+import { useState } from 'react'
+import CreatePoll from './CreatePoll'
 
 function App() {
-  const [result, setResult] = useState<string>('Loading...')
-
-  useEffect(() => {
-    async function testConnection() {
-      try {
-        const client = generateClient()
-        const response = await client.graphql({
-          query: getPollQuery,
-          variables: { pollId: 'f560cf40-737d-417b-852b-24aab2b13dec' },
-          authMode: 'apiKey',
-        })
-        setResult(JSON.stringify(response, null, 2))
-      } catch (err) {
-        setResult('Error: ' + JSON.stringify(err, null, 2))
-      }
-    }
-    testConnection()
-  }, [])
+  const [createdPollId, setCreatedPollId] = useState<string | null>(null)
 
   return (
-    <div style={{ padding: '2rem', fontFamily: 'monospace' }}>
-      <h1>Amplify Connection Test</h1>
-      <pre>{result}</pre>
+    <div style={{ minHeight: '100vh', background: '#FFFFFF' }}>
+      {createdPollId ? (
+        <div style={{ padding: '4rem 1.5rem', textAlign: 'center' }}>
+          <p className="mono-label" style={{ marginBottom: '1rem', color: '#525252' }}>
+            Poll Created
+          </p>
+          <h1 style={{ fontSize: '2rem' }}>Poll ID: {createdPollId}</h1>
+          <p style={{ marginTop: '1rem', color: '#525252' }}>
+            (Voting screen coming next)
+          </p>
+        </div>
+      ) : (
+        <CreatePoll onPollCreated={setCreatedPollId} />
+      )}
     </div>
   )
 }
