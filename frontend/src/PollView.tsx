@@ -43,6 +43,7 @@ function PollView({ pollId }: PollViewProps) {
     const [loading, setLoading] = useState(true)
     const [submitting, setSubmitting] = useState(false)
     const [notFound, setNotFound] = useState(false)
+    const [copied, setCopied] = useState(false)
 
     // Load initial poll data
     useEffect(() => {
@@ -115,6 +116,13 @@ function PollView({ pollId }: PollViewProps) {
             setSubmitting(false)
         }
     }
+    function handleCopyLink() {
+        const url = window.location.href
+        navigator.clipboard.writeText(url).then(() => {
+            setCopied(true)
+            setTimeout(() => setCopied(false), 2000)
+        })
+    }
 
     if (loading) {
         return <p style={{ padding: '4rem', textAlign: 'center' }}>Loading…</p>
@@ -129,6 +137,7 @@ function PollView({ pollId }: PollViewProps) {
                 <h1 style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>
                     This poll doesn't exist.
                 </h1>
+
                 <p style={{ color: '#525252', marginBottom: '2rem' }}>
                     The link might be wrong, or the poll may have been removed.
                 </p>
@@ -158,6 +167,27 @@ function PollView({ pollId }: PollViewProps) {
                 {hasVoted ? 'Live Results' : 'Cast Your Vote'}
             </p>
             <h1 style={{ fontSize: '2.5rem', marginBottom: '2.5rem' }}>{question}</h1>
+            <button
+                onClick={handleCopyLink}
+                className="mono-label"
+                style={{
+                    background: 'transparent',
+                    border: '1px solid #000000',
+                    padding: '0.6rem 1.2rem',
+                    marginBottom: '2.5rem',
+                    transition: 'background 100ms, color 100ms',
+                }}
+                onMouseEnter={(e) => {
+                    e.currentTarget.style.background = '#000000'
+                    e.currentTarget.style.color = '#FFFFFF'
+                }}
+                onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'transparent'
+                    e.currentTarget.style.color = '#000000'
+                }}
+            >
+                {copied ? '✓ Link Copied' : 'Copy Link →'}
+            </button>
 
             {!hasVoted ? (
                 <div>
