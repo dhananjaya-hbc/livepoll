@@ -37,45 +37,47 @@ function CreatePoll({ onPollCreated }: CreatePollProps) {
     }
 
     async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    setError(null)
+        e.preventDefault()
+        setError(null)
 
-    const trimmedOptions = options.map((o) => o.trim()).filter(Boolean)
-    if (!question.trim()) {
-      setError('A question is required.')
-      return
-    }
-    if (trimmedOptions.length < 2) {
-      setError('At least two options are required.')
-      return
-    }
+        const trimmedOptions = options.map((o) => o.trim()).filter(Boolean)
+        if (!question.trim()) {
+            setError('A question is required.')
+            return
+        }
+        if (trimmedOptions.length < 2) {
+            setError('At least two options are required.')
+            return
+        }
 
-    setLoading(true)
-    try {
-      const client = generateClient()   // ← make sure this line exists
-      const response = await client.graphql({
-        query: createPollMutation,
-        variables: { question: question.trim(), options: trimmedOptions },
-        authMode: 'apiKey',
-      }) as { data: { createPoll: { pollId: string } } }
-      onPollCreated(response.data.createPoll.pollId)
-    } catch (err) {
-      setError('Something went wrong creating the poll.')
-      console.error(err)
-    } finally {
-      setLoading(false)
+        setLoading(true)
+        try {
+            const client = generateClient()   // ← make sure this line exists
+            const response = await client.graphql({
+                query: createPollMutation,
+                variables: { question: question.trim(), options: trimmedOptions },
+                authMode: 'apiKey',
+            }) as { data: { createPoll: { pollId: string } } }
+            onPollCreated(response.data.createPoll.pollId)
+        } catch (err) {
+            setError('Something went wrong creating the poll.')
+            console.error(err)
+        } finally {
+            setLoading(false)
+        }
     }
-  }
 
     return (
         <div style={{ maxWidth: '640px', margin: '0 auto', padding: '4rem 1.5rem' }}>
             <p className="mono-label" style={{ marginBottom: '1rem', color: '#525252' }}>
-                New Poll
+                LivePoll
             </p>
-            <h1 style={{ fontSize: '3rem', marginBottom: '2.5rem' }}>
-                Ask the room.
+            <h1 style={{ fontSize: '3.25rem', marginBottom: '1rem' }}>
+                Ask the room.<br />Watch it answer.
             </h1>
-
+            <p style={{ color: '#525252', fontSize: '1.1rem', marginBottom: '3rem', maxWidth: '480px' }}>
+                Create a poll, share the link, and watch results update live as votes come in — no refresh needed.
+            </p>
             <form onSubmit={handleSubmit}>
                 {/* Question field */}
                 <div style={{ marginBottom: '2rem' }}>
