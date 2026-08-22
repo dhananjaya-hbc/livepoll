@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { generateClient } from 'aws-amplify/api'
+import Toast from './Toast'
 
 const getPollQuery = /* GraphQL */ `
   query GetPoll($pollId: ID!) {
@@ -44,6 +45,7 @@ function PollView({ pollId }: PollViewProps) {
     const [submitting, setSubmitting] = useState(false)
     const [notFound, setNotFound] = useState(false)
     const [copied, setCopied] = useState(false)
+    const [toastMessage, setToastMessage] = useState<string | null>(null)
 
     // Load initial poll data
     useEffect(() => {
@@ -112,6 +114,7 @@ function PollView({ pollId }: PollViewProps) {
             setHasVoted(true)
         } catch (err) {
             console.error('Vote failed:', err)
+            setToastMessage('Your vote could not be submitted. Please try again.')
         } finally {
             setSubmitting(false)
         }
@@ -130,31 +133,36 @@ function PollView({ pollId }: PollViewProps) {
 
     if (notFound) {
         return (
-            <div style={{ maxWidth: '640px', margin: '0 auto', padding: '4rem 1.5rem', textAlign: 'center' }}>
-                <p className="mono-label" style={{ marginBottom: '1rem', color: '#525252' }}>
-                    404
-                </p>
-                <h1 style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>
-                    This poll doesn't exist.
-                </h1>
+            <>
+                <div style={{ maxWidth: '640px', margin: '0 auto', padding: '4rem 1.5rem', textAlign: 'center' }}>
+                    <p className="mono-label" style={{ marginBottom: '1rem', color: '#525252' }}>
+                        404
+                    </p>
+                    <h1 style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>
+                        This poll doesn't exist.
+                    </h1>
 
-                <p style={{ color: '#525252', marginBottom: '2rem' }}>
-                    The link might be wrong, or the poll may have been removed.
-                </p>
-                <a
-                    href="/"
-                    className="mono-label"
-                    style={{
-                        display: 'inline-block',
-                        background: '#000000',
-                        color: '#FFFFFF',
-                        padding: '0.9rem 2rem',
-                        textDecoration: 'none',
-                    }}
-                >
-                    Create a New Poll →
-                </a>
-            </div>
+                    <p style={{ color: '#525252', marginBottom: '2rem' }}>
+                        The link might be wrong, or the poll may have been removed.
+                    </p>
+                    <a
+                        href="/"
+                        className="mono-label"
+                        style={{
+                            display: 'inline-block',
+                            background: '#000000',
+                            color: '#FFFFFF',
+                            padding: '0.9rem 2rem',
+                            textDecoration: 'none',
+                        }}
+                    >
+                        Create a New Poll →
+                    </a>
+                </div>
+                {toastMessage && (
+                    <Toast message={toastMessage} onDismiss={() => setToastMessage(null)} />
+                )}
+            </>
         )
 
     }
