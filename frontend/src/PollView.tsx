@@ -42,21 +42,36 @@ function PollView({ pollId }: PollViewProps) {
     const [hasVoted, setHasVoted] = useState(false)
     const [loading, setLoading] = useState(true)
     const [submitting, setSubmitting] = useState(false)
+    const [notFound, setNotFound] = useState(false)
 
     // Load initial poll data
     useEffect(() => {
         async function loadPoll() {
-            const client = generateClient()
-            const response = await client.graphql({
-                query: getPollQuery,
-                variables: { pollId },
-                authMode: 'apiKey',
-            }) as { data: { getPoll: { question: string; options: string[]; voteCounts: string } } }
-            const poll = response.data.getPoll
-            setQuestion(poll.question)
-            setOptions(poll.options)
-            setVoteCounts(JSON.parse(poll.voteCounts || '{}'))
-            setLoading(false)
+            try {
+                const client = generateClient()
+                const response = await client.graphql({
+                    query: getPollQuery,
+                    variables: { pollId },
+                    authMode: 'apiKey',
+                }) as { data: { getPoll: { question: string; options: string[]; voteCounts: string } | null } }
+
+                const poll = response.data.getPoll
+
+                if (!poll) {
+                    setNotFound(true)
+                    setLoading(false)
+                    return
+                }
+
+                setQuestion(poll.question)
+                setOptions(poll.options)
+                setVoteCounts(JSON.parse(poll.voteCounts || '{}'))
+                setLoading(false)
+            } catch (err) {
+                console.error('Failed to load poll:', err)
+                setNotFound(true)
+                setLoading(false)
+            }
         }
         loadPoll()
     }, [pollId])
@@ -103,6 +118,36 @@ function PollView({ pollId }: PollViewProps) {
 
     if (loading) {
         return <p style={{ padding: '4rem', textAlign: 'center' }}>Loading…</p>
+    }
+
+    if (notFound) {
+        return (
+            <div style={{ maxWidth: '640px', margin: '0 auto', padding: '4rem 1.5rem', textAlign: 'center' }}>
+                <p className="mono-label" style={{ marginBottom: '1rem', color: '#525252' }}>
+                    404
+                </p>
+                <h1 style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>
+                    This poll doesn't exist.
+                </h1>
+                <p style={{ color: '#525252', marginBottom: '2rem' }}>
+                    The link might be wrong, or the poll may have been removed.
+                </p>
+                <a
+                    href="/"
+                    className="mono-label"
+                    style={{
+                        display: 'inline-block',
+                        background: '#000000',
+                        color: '#FFFFFF',
+                        padding: '0.9rem 2rem',
+                        textDecoration: 'none',
+                    }}
+                >
+                    Create a New Poll →
+                </a>
+            </div>
+        )
+
     }
 
     const totalVotes = Object.values(voteCounts).reduce((sum, n) => sum + n, 0)
