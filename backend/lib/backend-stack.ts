@@ -3,6 +3,7 @@ import { Construct } from 'constructs';
 import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import * as appsync from 'aws-cdk-lib/aws-appsync';
 import * as path from 'path';
+import * as cognito from 'aws-cdk-lib/aws-cognito';
 
 export class BackendStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
@@ -23,9 +24,29 @@ export class BackendStack extends cdk.Stack {
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
+    // Cognito User Pool for host authentication
+    const userPool = new cognito.UserPool(this, 'LivePollUserPool', {
+      userPoolName: 'LivePollUsers',
+      selfSignUpEnabled: true,
+      signInAliases: { email: true },
+      autoVerify: { email: true },
+      passwordPolicy: {
+        minLength: 8,
+        requireLowercase: true,
+        requireUppercase: false,
+        requireDigits: true,
+        requireSymbols: false,
+      },
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+    });
+
+    const userPoolClient = new cognito.UserPoolClient(this, 'LivePollUserPoolClient', {
+      userPool,
+      authFlows: { userPassword: true, userSrp: true },
+    });
 
     // AppSync GraphQL API
-    const api = new appsync.GraphqlApi(this, 'LivePollApi', {
+        const api = new appsync.GraphqlApi(this, 'LivePollApi', {
       name: 'LivePollApi',
       definition: appsync.Definition.fromFile(
         path.join(__dirname, '../graphql/schema.graphql')
@@ -34,6 +55,12 @@ export class BackendStack extends cdk.Stack {
         defaultAuthorization: {
           authorizationType: appsync.AuthorizationType.API_KEY,
         },
+        additionalAuthorizationModes: [
+          {
+            authorizationType: appsync.AuthorizationType.USER_POOL,
+            userPoolConfig: { userPool },
+          },
+        ],
       },
     });
 
@@ -54,7 +81,7 @@ export class BackendStack extends cdk.Stack {
       responseMappingTemplate: appsync.MappingTemplate.dynamoDbResultItem(),
     });
 
-        // Resolver: createPoll mutation — creates a new poll with a generated ID
+    // Resolver: createPoll mutation — creates a new poll with a generated ID
     pollsDataSource.createResolver('CreatePollResolver', {
       typeName: 'Mutation',
       fieldName: 'createPoll',
@@ -71,7 +98,7 @@ export class BackendStack extends cdk.Stack {
       responseMappingTemplate: appsync.MappingTemplate.dynamoDbResultItem(),
     });
 
-        // Resolver: submitVote mutation — atomically increments vote count for an option
+    // Resolver: submitVote mutation — atomically increments vote count for an option
     pollsDataSource.createResolver('SubmitVoteResolver', {
       typeName: 'Mutation',
       fieldName: 'submitVote',
@@ -82,14 +109,22 @@ export class BackendStack extends cdk.Stack {
         path.join(__dirname, '../resolvers/submitVote.res.vtl')
       ),
     });
-    
-        // Output the API URL and Key so they're easy to find after each deploy
+
+    // Output the API URL and Key so they're easy to find after each deploy
     new cdk.CfnOutput(this, 'GraphQLApiUrl', {
       value: api.graphqlUrl,
     });
 
     new cdk.CfnOutput(this, 'GraphQLApiKey', {
       value: api.apiKey || '',
+    });
+
+        new cdk.CfnOutput(this, 'UserPoolId', {
+      value: userPool.userPoolId,
+    });
+
+    new cdk.CfnOutput(this, 'UserPoolClientId', {
+      value: userPoolClient.userPoolClientId,
     });
   }
 }
