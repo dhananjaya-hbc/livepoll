@@ -339,3 +339,6 @@ function PollView({ pollId }: PollViewProps) {
             )}
         </>
     )
+}
+
+export default PollView
