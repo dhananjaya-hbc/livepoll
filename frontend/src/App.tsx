@@ -1,10 +1,16 @@
 import { Routes, Route, useNavigate, useParams } from 'react-router-dom'
+import { Authenticator } from '@aws-amplify/ui-react'
+import '@aws-amplify/ui-react/styles.css'
 import CreatePoll from './CreatePoll'
-import PollView from './pollView'
+import PollView from './PollView'
 
 function CreatePollPage() {
   const navigate = useNavigate()
-  return <CreatePoll onPollCreated={(pollId) => navigate(`/poll/${pollId}`)} />
+  return (
+    <Authenticator>
+      {() => <CreatePoll onPollCreated={(pollId) => navigate(`/poll/${pollId}`)} />}
+    </Authenticator>
+  )
 }
 
 function PollPage() {
