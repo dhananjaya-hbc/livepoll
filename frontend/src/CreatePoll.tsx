@@ -58,7 +58,7 @@ function CreatePoll({ onPollCreated }: CreatePollProps) {
             const response = await client.graphql({
                 query: createPollMutation,
                 variables: { question: question.trim(), options: trimmedOptions },
-                authMode: 'apiKey',
+                authMode: 'userPool',
             }) as { data: { createPoll: { pollId: string } } }
             onPollCreated(response.data.createPoll.pollId)
         } catch (err) {
