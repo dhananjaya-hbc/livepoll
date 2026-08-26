@@ -13,5 +13,14 @@
         "expressionValues": {
             ":inc": $util.dynamodb.toDynamoDBJson(1)
         }
+    },
+    "condition": {
+        "expression": "#status = :open",
+        "expressionNames": {
+            "#status": "status"
+        },
+        "expressionValues": {
+            ":open": $util.dynamodb.toDynamoDBJson("open")
+        }
     }
 }
