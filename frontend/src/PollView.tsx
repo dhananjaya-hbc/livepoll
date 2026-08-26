@@ -126,7 +126,7 @@ function PollView({ pollId }: PollViewProps) {
             setHasVoted(true)
         } catch (err) {
             console.error('Vote failed:', err)
-            setToastMessage('Your vote could not be submitted. Please try again.')
+            setToastMessage('This poll may be closed, or your vote could not be submitted.')
         } finally {
             setSubmitting(false)
         }
@@ -245,7 +245,7 @@ function PollView({ pollId }: PollViewProps) {
                     {copied ? '✓ Link Copied' : 'Copy Link →'}
                 </button>
 
-                {!hasVoted ? (
+                {!hasVoted && pollStatus === 'open' ? (
                     <div>
                         {options.map((option) => (
                             <button
@@ -275,6 +275,13 @@ function PollView({ pollId }: PollViewProps) {
                                 {option}
                             </button>
                         ))}
+                    </div>
+                ) : !hasVoted && pollStatus === 'closed' ? (
+                    <div style={{ textAlign: 'center', padding: '2rem 0' }}>
+                        <p className="mono-label" style={{ color: '#525252', marginBottom: '1rem' }}>
+                            This poll is closed.
+                        </p>
+                        <p style={{ color: '#525252' }}>Voting has ended for this poll.</p>
                     </div>
                 ) : (
                     <div>
