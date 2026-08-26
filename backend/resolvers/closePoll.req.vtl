@@ -1,0 +1,25 @@
+#if($ctx.identity.sub == "")
+  $util.unauthorized()
+#end
+{
+    "version": "2018-05-29",
+    "operation": "UpdateItem",
+    "key": {
+        "pollId": $util.dynamodb.toDynamoDBJson($ctx.args.pollId)
+    },
+    "update": {
+        "expression": "SET #status = :closed",
+        "expressionNames": {
+            "#status": "status"
+        },
+        "expressionValues": {
+            ":closed": $util.dynamodb.toDynamoDBJson("closed")
+        }
+    },
+    "condition": {
+        "expression": "hostId = :callerId",
+        "expressionValues": {
+            ":callerId": $util.dynamodb.toDynamoDBJson($ctx.identity.sub)
+        }
+    }
+}
