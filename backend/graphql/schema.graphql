@@ -16,6 +16,8 @@ type Mutation {
   createPoll(question: String!, options: [String!]!): Poll!
     @aws_cognito_user_pools
   submitVote(pollId: ID!, option: String!): Poll!
+  closePoll(pollId: ID!): Poll!
+    @aws_cognito_user_pools
 }
 
 type Subscription {
