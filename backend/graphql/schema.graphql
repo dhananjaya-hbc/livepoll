@@ -1,4 +1,4 @@
-type Poll {
+type Poll @aws_api_key @aws_cognito_user_pools {
   pollId: ID!
   hostId: String!
   question: String!
