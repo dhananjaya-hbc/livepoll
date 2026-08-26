@@ -46,7 +46,7 @@ export class BackendStack extends cdk.Stack {
     });
 
     // AppSync GraphQL API
-        const api = new appsync.GraphqlApi(this, 'LivePollApi', {
+    const api = new appsync.GraphqlApi(this, 'LivePollApi', {
       name: 'LivePollApi',
       definition: appsync.Definition.fromFile(
         path.join(__dirname, '../graphql/schema.graphql')
@@ -88,7 +88,7 @@ export class BackendStack extends cdk.Stack {
       requestMappingTemplate: appsync.MappingTemplate.dynamoDbPutItem(
         appsync.PrimaryKey.partition('pollId').auto(),
         appsync.Values.projecting()
-          .attribute('hostId').is('"anonymous-host"')
+          .attribute('hostId').is('$ctx.identity.sub')
           .attribute('question').is('$ctx.args.question')
           .attribute('options').is('$ctx.args.options')
           .attribute('voteCounts').is('{}')
@@ -110,6 +110,18 @@ export class BackendStack extends cdk.Stack {
       ),
     });
 
+        // Resolver: closePoll mutation — only the poll's creator can close it
+    pollsDataSource.createResolver('ClosePollResolver', {
+      typeName: 'Mutation',
+      fieldName: 'closePoll',
+      requestMappingTemplate: appsync.MappingTemplate.fromFile(
+        path.join(__dirname, '../resolvers/closePoll.req.vtl')
+      ),
+      responseMappingTemplate: appsync.MappingTemplate.fromFile(
+        path.join(__dirname, '../resolvers/closePoll.res.vtl')
+      ),
+    });
+
     // Output the API URL and Key so they're easy to find after each deploy
     new cdk.CfnOutput(this, 'GraphQLApiUrl', {
       value: api.graphqlUrl,
@@ -119,7 +131,7 @@ export class BackendStack extends cdk.Stack {
       value: api.apiKey || '',
     });
 
-        new cdk.CfnOutput(this, 'UserPoolId', {
+    new cdk.CfnOutput(this, 'UserPoolId', {
       value: userPool.userPoolId,
     });
 
