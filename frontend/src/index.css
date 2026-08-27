@@ -361,6 +361,80 @@ label {
   transition: width var(--transition-bar) ease;
 }
 
+/* ------------------------------------------------------------ Analytics --- */
+
+.section-heading {
+  margin: var(--space-7) 0 var(--space-4);
+}
+
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  border: 2px solid var(--border);
+}
+
+.stat {
+  padding: var(--space-4);
+  border-right: 1px solid var(--border-light);
+}
+
+.stat:last-child {
+  border-right: none;
+}
+
+.stat-value {
+  font-family: var(--display);
+  font-size: 1.75rem;
+  line-height: 1.1;
+  margin-top: var(--space-1);
+}
+
+/* Hand-built bars rather than a charting library: the whole visual language is
+   flat black rectangles, so a library would be weight without benefit. */
+.chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 140px;
+  border-bottom: 2px solid var(--border);
+  padding-bottom: 2px;
+}
+
+.chart-column {
+  flex: 1;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+  background: var(--muted);
+}
+
+.chart-bar {
+  width: 100%;
+  background: var(--foreground);
+  min-height: 2px;
+  transition: height var(--transition-bar) ease;
+}
+
+.chart-axis {
+  display: flex;
+  justify-content: space-between;
+  margin-top: var(--space-2);
+}
+
+@media (max-width: 640px) {
+  .stat-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .stat {
+    border-bottom: 1px solid var(--border-light);
+  }
+
+  .stat:nth-child(2n) {
+    border-right: none;
+  }
+}
+
 /* ------------------------------------------------------------- Skeleton --- */
 
 .skeleton {
