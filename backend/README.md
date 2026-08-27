@@ -23,6 +23,7 @@ Built as a hands-on project to learn AWS infrastructure-as-code, serverless arch
 - **Results update live** on every connected screen the instant a vote comes in, via GraphQL subscriptions over WebSocket
 - **Hosts can close a poll** — once closed, voting is blocked for everyone, enforced at the database level, not just in the UI
 - **Hosts get a dashboard** at `/dashboard` listing every poll they've created — status, vote totals, and creation date, with click-through to live results
+- **Polls can expire on their own** — hosts optionally pick 15 minutes, 1 hour, or 24 hours at creation; voters see a live countdown, and voting stops the moment it hits zero
 - Clean 404 handling for invalid/removed poll links
 - Copy-link button for easy sharing
 - Toast notifications for error states
@@ -55,11 +56,18 @@ Built as a hands-on project to learn AWS infrastructure-as-code, serverless arch
        ▼                              ▼
 ┌──────────────────┐        ┌──────────────────────┐
 │   DynamoDB       │        │   Cognito User Pool  │
-│   Polls table    │        │ (host authentication)│
+│  Polls + Votes   │        │ (host authentication)│
 └──────────────────┘        └──────────────────────┘
+       ▲
+       │ UpdateItem (status → "closed")
+┌──────────────────────────────┐
+│  Lambda: closeExpiredPolls   │ ◀── EventBridge, every 5 min
+└──────────────────────────────┘
 ```
 
-No Lambda functions are used — every resolver is a **direct AppSync-to-DynamoDB resolver** written in VTL (Velocity Template Language). This keeps the backend fast (no cold starts) and was a deliberate choice to get hands-on with resolver mapping templates directly, rather than defaulting to Lambda for everything.
+**No Lambda sits in the request path** — every resolver is a **direct AppSync-to-DynamoDB resolver** written in VTL (Velocity Template Language). This keeps the API fast (no cold starts) and was a deliberate choice to get hands-on with resolver mapping templates directly, rather than defaulting to Lambda for everything.
+
+The one Lambda in the project closes expired polls on a schedule. That is a background job with no incoming request to attach a resolver to, which is what Lambda is actually for — it is not an exception to the rule above, since no user request ever invokes it.
 
 `submitVote` is a **pipeline resolver** rather than a unit resolver: a single VTL resolver can only touch one table, and one vote needs two writes — claim the voter's slot in `Votes`, then increment the counts in `Polls`. Still no Lambda involved.
 
@@ -76,6 +84,8 @@ No Lambda functions are used — every resolver is a **direct AppSync-to-DynamoD
 | **AWS IAM** | Permissions between AppSync, DynamoDB, and Cognito |
 | **Amazon S3 + CloudFront** | Static hosting and CDN delivery for the built React app |
 | **GitHub Actions + IAM OIDC** | CI/CD — deploys on push using short-lived federated credentials, no stored AWS keys |
+| **AWS Lambda** | One scheduled function that closes polls past their expiry — the only Lambda in the project |
+| **Amazon EventBridge** | Fires that function every 5 minutes |
 
 ---
 
@@ -87,6 +97,7 @@ This was one of the more interesting parts of the project to get right — enfor
 - **`closePoll`** uses a DynamoDB **conditional write** — comparing the poll's stored `hostId` against the caller's Cognito identity (`$ctx.identity.sub`). If they don't match, DynamoDB itself rejects the write with a `ConditionalCheckFailedException`, regardless of what the frontend shows or hides.
 - **`submitVote`** uses a similar conditional write checking the poll's `status` — votes are only accepted while a poll is `"open"`. A closed poll rejects new votes at the database level even if someone calls the API directly, bypassing the UI entirely.
 - **One vote per voter** — `submitVote` is a pipeline resolver: it first writes a `pollId#voterId` record to the `Votes` table with `attribute_not_exists(voteId)`, so a repeat vote fails the conditional write and never reaches the counter. The `voterId` is a random UUID the browser stores in `localStorage`. **This is deliberately imperfect**: clearing storage, opening a private window, or using another browser produces a new id and allows another vote. It raises the cost of casual ballot-stuffing; it is not identity verification. Doing this properly would mean requiring accounts for voters, which would cost the frictionless anonymous voting the app is built around.
+- **Expiry is enforced by the database, not the sweep.** `submitVote`'s conditional write also checks `expiresAt`, so an expired poll rejects votes the instant it expires. The scheduled Lambda only updates the stored `status` so it reflects reality — a poll is never votable during the gap before the sweep runs.
 - **`getPoll`** and voting stay open to anonymous users via API key — no account required to participate in a poll.
 - **`listMyPolls`** never accepts a `hostId` argument — the resolver derives it from `$ctx.identity.sub`, so a host cannot craft a request that returns someone else's polls.
 
@@ -106,6 +117,7 @@ This mixed-auth, condition-enforced pattern was more work than a single-auth-mod
 | `voteCounts` | Map (AWSJSON) | e.g. `{"Red": 3, "Blue": 1}`, updated via atomic `ADD` |
 | `status` | String | `"open"` \| `"closed"` |
 | `createdAt` | Number | Unix timestamp |
+| `expiresAt` | Number | Optional — Unix timestamp after which voting is refused |
 
 **Global secondary index — `hostId-index`**
 
@@ -113,6 +125,15 @@ This mixed-auth, condition-enforced pattern was more work than a single-auth-mod
 |---|---|---|
 | Partition | `hostId` | Fetch one host's polls without scanning the table |
 | Sort | `createdAt` | Returns newest-first via `scanIndexForward: false` |
+
+**Global secondary index — `status-expiresAt-index`** (sparse)
+
+| Key | Attribute | Purpose |
+|---|---|---|
+| Partition | `status` | Narrow the sweep to open polls |
+| Sort | `expiresAt` | Range-query only the ones already past due |
+
+DynamoDB only indexes items that have *both* key attributes, so polls created without an expiry never enter this index at all — the scheduled sweep reads just the handful of polls that can actually expire, never the whole table.
 
 ### `Votes` table
 One record per voter per poll — the conditional write against this table is what enforces one-vote-per-voter.
@@ -138,6 +159,7 @@ type Poll @aws_api_key @aws_cognito_user_pools {
   voteCounts: AWSJSON!
   status: String!
   createdAt: AWSTimestamp!
+  expiresAt: AWSTimestamp
 }
 
 type Query {
@@ -147,7 +169,7 @@ type Query {
 }
 
 type Mutation {
-  createPoll(question: String!, options: [String!]!): Poll!
+  createPoll(question: String!, options: [String!]!, expiresAt: AWSTimestamp): Poll!
     @aws_cognito_user_pools
   submitVote(pollId: ID!, option: String!, voterId: String!): Poll!
   closePoll(pollId: ID!): Poll!
@@ -189,6 +211,8 @@ livepoll/
 │   │   ├── closePoll.res.vtl
 │   │   ├── listMyPolls.req.vtl
 │   │   └── listMyPolls.res.vtl
+│   ├── lambda/
+│   │   └── closeExpiredPolls.ts  # scheduled expiry sweep (the only Lambda)
 │   └── test/
 │       └── backend.test.ts    # CDK template assertions
 ├── frontend/                  # React app
@@ -262,7 +286,6 @@ Covers `CreatePoll` (validation, add/remove options, successful submission) and 
 
 ## Roadmap
 
-- [ ] Optional poll expiration that auto-closes polls on a schedule
 - [ ] Custom domain + HTTPS certificate in front of CloudFront
 - [ ] Infrastructure improvements: move hardcoded config values to environment variables / SSM Parameter Store
 
