@@ -10,6 +10,8 @@ type Poll @aws_api_key @aws_cognito_user_pools {
 
 type Query {
   getPoll(pollId: ID!): Poll
+  listMyPolls: [Poll!]!
+    @aws_cognito_user_pools
 }
 
 type Mutation {
