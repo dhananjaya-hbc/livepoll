@@ -9,9 +9,19 @@ type Poll @aws_api_key @aws_cognito_user_pools {
   expiresAt: AWSTimestamp
 }
 
+# Deliberately excludes voterId. Vote counts already equal unique voters (one
+# vote per voter is enforced), so analytics needs no voter identity at all —
+# voters stay anonymous even to the host who created the poll.
+type Vote @aws_cognito_user_pools {
+  option: String!
+  createdAt: AWSTimestamp!
+}
+
 type Query {
   getPoll(pollId: ID!): Poll
   listMyPolls: [Poll!]!
+    @aws_cognito_user_pools
+  listPollVotes(pollId: ID!): [Vote!]!
     @aws_cognito_user_pools
 }
 
