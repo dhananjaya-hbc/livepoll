@@ -1,0 +1,16 @@
+## Step 2: ownership already proved, so read this poll's votes in time order.
+## Limit is a deliberate ceiling — analytics summarises shape, and an unbounded
+## query would page indefinitely on a very large poll.
+{
+    "version": "2018-05-29",
+    "operation": "Query",
+    "index": "pollId-createdAt-index",
+    "query": {
+        "expression": "pollId = :pollId",
+        "expressionValues": {
+            ":pollId": $util.dynamodb.toDynamoDBJson($ctx.args.pollId)
+        }
+    },
+    "scanIndexForward": true,
+    "limit": 1000
+}
