@@ -10,10 +10,10 @@ vi.mock('aws-amplify/api', () => ({
   generateClient: () => ({ graphql: graphqlMock }),
 }))
 
-function renderCreatePoll() {
+function renderCreatePoll(duplicated?: { question: string; options: string[] }) {
   const onPollCreated = vi.fn()
   render(
-    <MemoryRouter>
+    <MemoryRouter initialEntries={[{ pathname: '/', state: duplicated ?? null }]}>
       <CreatePoll onPollCreated={onPollCreated} />
     </MemoryRouter>
   )
@@ -31,6 +31,37 @@ describe('CreatePoll', () => {
     expect(screen.getByPlaceholderText('Option 1')).toBeInTheDocument()
     expect(screen.getByPlaceholderText('Option 2')).toBeInTheDocument()
     expect(screen.queryByPlaceholderText('Option 3')).not.toBeInTheDocument()
+  })
+
+  test('a template replaces the option fields', async () => {
+    const user = userEvent.setup()
+    renderCreatePoll()
+
+    await user.click(screen.getByRole('button', { name: 'Yes / No' }))
+
+    expect(screen.getByPlaceholderText('Option 1')).toHaveValue('Yes')
+    expect(screen.getByPlaceholderText('Option 2')).toHaveValue('No')
+  })
+
+  test('the rating template seeds five options', async () => {
+    const user = userEvent.setup()
+    renderCreatePoll()
+
+    await user.click(screen.getByRole('button', { name: 'Rate 1–5' }))
+
+    expect(screen.getByPlaceholderText('Option 5')).toHaveValue('5')
+    expect(screen.queryByPlaceholderText('Option 6')).not.toBeInTheDocument()
+  })
+
+  test('prefills from a duplicated poll and flags that it was duplicated', () => {
+    renderCreatePoll({ question: 'Tea or coffee?', options: ['Tea', 'Coffee'] })
+
+    expect(screen.getByPlaceholderText('What do you want to ask?')).toHaveValue(
+      'Tea or coffee?'
+    )
+    expect(screen.getByPlaceholderText('Option 1')).toHaveValue('Tea')
+    expect(screen.getByPlaceholderText('Option 2')).toHaveValue('Coffee')
+    expect(screen.getByText(/Duplicated/)).toBeInTheDocument()
   })
 
   test('rejects a submission with no question', async () => {
