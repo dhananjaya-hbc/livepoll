@@ -42,6 +42,15 @@ export class BackendStack extends cdk.Stack {
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
+
+    // Votes are keyed by pollId#voterId, so reading one poll's votes in time
+    // order needs an index — otherwise analytics would scan the whole table.
+    votesTable.addGlobalSecondaryIndex({
+      indexName: 'pollId-createdAt-index',
+      partitionKey: { name: 'pollId', type: dynamodb.AttributeType.STRING },
+      sortKey: { name: 'createdAt', type: dynamodb.AttributeType.NUMBER },
+    });
+
     // Cognito User Pool for host authentication
     const userPool = new cognito.UserPool(this, 'LivePollUserPool', {
       userPoolName: 'LivePollUsers',
@@ -177,6 +186,44 @@ export class BackendStack extends cdk.Stack {
       ),
       responseMappingTemplate: appsync.MappingTemplate.fromFile(
         path.join(__dirname, '../resolvers/closePoll.res.vtl')
+      ),
+    });
+
+    // listPollVotes runs as a pipeline so ownership is proved before any vote
+    // data is read: step 1 loads the poll and rejects anyone who is not its host,
+    // step 2 queries that poll's votes.
+    const verifyPollOwnerFunction = new appsync.AppsyncFunction(this, 'VerifyPollOwnerFunction', {
+      api,
+      name: 'verifyPollOwner',
+      dataSource: pollsDataSource,
+      requestMappingTemplate: appsync.MappingTemplate.fromFile(
+        path.join(__dirname, '../resolvers/verifyPollOwner.req.vtl')
+      ),
+      responseMappingTemplate: appsync.MappingTemplate.fromFile(
+        path.join(__dirname, '../resolvers/verifyPollOwner.res.vtl')
+      ),
+    });
+
+    const listPollVotesFunction = new appsync.AppsyncFunction(this, 'ListPollVotesFunction', {
+      api,
+      name: 'listPollVotes',
+      dataSource: votesDataSource,
+      requestMappingTemplate: appsync.MappingTemplate.fromFile(
+        path.join(__dirname, '../resolvers/listPollVotes.req.vtl')
+      ),
+      responseMappingTemplate: appsync.MappingTemplate.fromFile(
+        path.join(__dirname, '../resolvers/listPollVotes.res.vtl')
+      ),
+    });
+
+    new appsync.Resolver(api, 'ListPollVotesResolver', {
+      api,
+      typeName: 'Query',
+      fieldName: 'listPollVotes',
+      pipelineConfig: [verifyPollOwnerFunction, listPollVotesFunction],
+      requestMappingTemplate: appsync.MappingTemplate.fromString('{}'),
+      responseMappingTemplate: appsync.MappingTemplate.fromString(
+        '$util.toJson($ctx.prev.result)'
       ),
     });
 
