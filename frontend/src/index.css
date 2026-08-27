@@ -262,17 +262,11 @@ label {
   transition: background var(--transition-fast), color var(--transition-fast);
 }
 
+/* The card holds two interactive children (title link + duplicate action), so it
+   tints rather than fully inverting — a full inversion would fight both. */
 .card:hover,
-.card:focus-visible {
-  background: var(--foreground);
-  color: var(--background);
-}
-
-/* Meta text inherits on hover so it doesn't stay dark grey on black. */
-.card:hover .muted,
-.card:focus-visible .muted {
-  color: inherit;
-  opacity: 0.75;
+.card:focus-within {
+  background: var(--muted);
 }
 
 .card-title-row {
@@ -280,6 +274,44 @@ label {
   justify-content: space-between;
   gap: var(--space-4);
   margin-bottom: var(--space-3);
+}
+
+.card-title {
+  font-size: 1.15rem;
+  color: inherit;
+  text-decoration: none;
+}
+
+.card-title:hover,
+.card-title:focus-visible {
+  text-decoration: underline;
+}
+
+.card-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+/* ------------------------------------------------------------ Templates --- */
+
+.template-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.chip {
+  background: transparent;
+  border: 1px solid var(--border);
+  padding: var(--space-2) var(--space-3);
+}
+
+.chip:hover,
+.chip:focus-visible {
+  background: var(--foreground);
+  color: var(--background);
 }
 
 .badge {
@@ -296,11 +328,12 @@ label {
   border-color: var(--foreground);
 }
 
-.card:hover .badge,
-.card:focus-visible .badge {
-  border-color: currentColor;
-  color: inherit;
-  background: transparent;
+@media (max-width: 640px) {
+  .card-footer {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-2);
+  }
 }
 
 /* -------------------------------------------------------------- Results --- */
