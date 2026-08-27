@@ -1,0 +1,12 @@
+## Step 1 of listPollVotes: load the poll so the next function only runs for its
+## owner. Vote-level data must not be readable by anyone but the host.
+#if($ctx.identity.sub == "")
+  $util.unauthorized()
+#end
+{
+    "version": "2018-05-29",
+    "operation": "GetItem",
+    "key": {
+        "pollId": $util.dynamodb.toDynamoDBJson($ctx.args.pollId)
+    }
+}
