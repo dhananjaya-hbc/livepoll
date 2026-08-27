@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - 'backend/**'
+  workflow_dispatch:
 
 permissions:
   id-token: write
@@ -29,5 +30,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # FrontendStack stages ../frontend/dist at synth time, so the directory must
+      # exist even though this workflow only deploys BackendStack. Creating it empty
+      # is enough to synth; it is never uploaded because the deploy is scoped below.
+      - name: Create placeholder frontend asset dir
+        run: mkdir -p ../frontend/dist
+
       - name: Deploy with CDK
-        run: npx cdk deploy --require-approval never
+        run: npx cdk deploy BackendStack --require-approval never
