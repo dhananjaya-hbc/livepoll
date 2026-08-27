@@ -47,7 +47,7 @@ Built as a hands-on project to learn AWS infrastructure-as-code, serverless arch
 │   Query:        getPoll                                │
 │                 listMyPolls  (Cognito only)            │
 │   Mutation:     createPoll   (Cognito only)            │
-│                 submitVote   (open polls only)         │
+│                 submitVote   (open polls, one per voter)│
 │                 closePoll    (Cognito + ownership check)│
 │   Subscription: onVoteUpdate (auto-fires on submitVote)│
 └────────────────────────────────────────────────────────┘
@@ -60,6 +60,8 @@ Built as a hands-on project to learn AWS infrastructure-as-code, serverless arch
 ```
 
 No Lambda functions are used — every resolver is a **direct AppSync-to-DynamoDB resolver** written in VTL (Velocity Template Language). This keeps the backend fast (no cold starts) and was a deliberate choice to get hands-on with resolver mapping templates directly, rather than defaulting to Lambda for everything.
+
+`submitVote` is a **pipeline resolver** rather than a unit resolver: a single VTL resolver can only touch one table, and one vote needs two writes — claim the voter's slot in `Votes`, then increment the counts in `Polls`. Still no Lambda involved.
 
 ---
 
@@ -84,6 +86,7 @@ This was one of the more interesting parts of the project to get right — enfor
 - **`createPoll`** requires a valid Cognito session (`@aws_cognito_user_pools` on the schema field). Anonymous API-key requests are rejected outright.
 - **`closePoll`** uses a DynamoDB **conditional write** — comparing the poll's stored `hostId` against the caller's Cognito identity (`$ctx.identity.sub`). If they don't match, DynamoDB itself rejects the write with a `ConditionalCheckFailedException`, regardless of what the frontend shows or hides.
 - **`submitVote`** uses a similar conditional write checking the poll's `status` — votes are only accepted while a poll is `"open"`. A closed poll rejects new votes at the database level even if someone calls the API directly, bypassing the UI entirely.
+- **One vote per voter** — `submitVote` is a pipeline resolver: it first writes a `pollId#voterId` record to the `Votes` table with `attribute_not_exists(voteId)`, so a repeat vote fails the conditional write and never reaches the counter. The `voterId` is a random UUID the browser stores in `localStorage`. **This is deliberately imperfect**: clearing storage, opening a private window, or using another browser produces a new id and allows another vote. It raises the cost of casual ballot-stuffing; it is not identity verification. Doing this properly would mean requiring accounts for voters, which would cost the frictionless anonymous voting the app is built around.
 - **`getPoll`** and voting stay open to anonymous users via API key — no account required to participate in a poll.
 - **`listMyPolls`** never accepts a `hostId` argument — the resolver derives it from `$ctx.identity.sub`, so a host cannot craft a request that returns someone else's polls.
 
@@ -111,6 +114,17 @@ This mixed-auth, condition-enforced pattern was more work than a single-auth-mod
 | Partition | `hostId` | Fetch one host's polls without scanning the table |
 | Sort | `createdAt` | Returns newest-first via `scanIndexForward: false` |
 
+### `Votes` table
+One record per voter per poll — the conditional write against this table is what enforces one-vote-per-voter.
+
+| Attribute | Type | Notes |
+|---|---|---|
+| `voteId` (PK) | String | Composite `pollId#voterId` |
+| `pollId` | String | |
+| `voterId` | String | Random UUID from the voter's `localStorage` |
+| `option` | String | Which option they picked |
+| `createdAt` | Number | Unix timestamp |
+
 ---
 
 ## GraphQL Schema (summary)
@@ -135,7 +149,7 @@ type Query {
 type Mutation {
   createPoll(question: String!, options: [String!]!): Poll!
     @aws_cognito_user_pools
-  submitVote(pollId: ID!, option: String!): Poll!
+  submitVote(pollId: ID!, option: String!, voterId: String!): Poll!
   closePoll(pollId: ID!): Poll!
     @aws_cognito_user_pools
 }
@@ -248,7 +262,6 @@ Covers `CreatePoll` (validation, add/remove options, successful submission) and 
 
 ## Roadmap
 
-- [ ] Rate limiting on `submitVote` to prevent abuse
 - [ ] Optional poll expiration that auto-closes polls on a schedule
 - [ ] Custom domain + HTTPS certificate in front of CloudFront
 - [ ] Infrastructure improvements: move hardcoded config values to environment variables / SSM Parameter Store
