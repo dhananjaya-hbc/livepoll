@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { generateClient } from 'aws-amplify/api'
 import Toast from './Toast'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 
 
 const createPollMutation = /* GraphQL */ `
@@ -22,13 +22,29 @@ const EXPIRY_OPTIONS = [
     { label: '24 hours', seconds: 24 * 60 * 60 },
 ]
 
+// Starter shapes for the most common poll formats. "Multiple choice" seeds blank
+// fields rather than placeholder text — filler the host has to delete is worse
+// than an empty field they can type into.
+const TEMPLATES = [
+    { name: 'Yes / No', options: ['Yes', 'No'] },
+    { name: 'Rate 1–5', options: ['1', '2', '3', '4', '5'] },
+    { name: 'Multiple choice', options: ['', '', '', ''] },
+]
+
+interface DuplicatedPoll {
+    question?: string
+    options?: string[]
+}
+
 interface CreatePollProps {
     onPollCreated: (pollId: string) => void
 }
 
 function CreatePoll({ onPollCreated }: CreatePollProps) {
-    const [question, setQuestion] = useState('')
-    const [options, setOptions] = useState(['', ''])
+    // Set when the host clicked "Duplicate" on the dashboard.
+    const duplicated = useLocation().state as DuplicatedPoll | null
+    const [question, setQuestion] = useState(duplicated?.question ?? '')
+    const [options, setOptions] = useState(duplicated?.options ?? ['', ''])
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [toastMessage, setToastMessage] = useState<string | null>(null)
@@ -102,7 +118,31 @@ function CreatePoll({ onPollCreated }: CreatePollProps) {
                 <p className="muted" style={{ fontSize: '1.1rem', marginBottom: 'var(--space-8)', maxWidth: '480px' }}>
                     Create a poll, share the link, and watch results update live as votes come in — no refresh needed.
                 </p>
+                {duplicated && (
+                    <p className="mono-label muted" style={{ marginBottom: 'var(--space-5)' }}>
+                        ✓ Duplicated — edit anything before publishing
+                    </p>
+                )}
+
                 <form onSubmit={handleSubmit}>
+                    <div className="field-group">
+                        <p className="mono-label" id="templates-label" style={{ marginBottom: 'var(--space-2)' }}>
+                            Start from
+                        </p>
+                        <div className="template-row" role="group" aria-labelledby="templates-label">
+                            {TEMPLATES.map((template) => (
+                                <button
+                                    key={template.name}
+                                    type="button"
+                                    className="btn chip mono-label"
+                                    onClick={() => setOptions([...template.options])}
+                                >
+                                    {template.name}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
                     <div className="field-group">
                         <label className="mono-label" htmlFor="poll-question">
                             Question
