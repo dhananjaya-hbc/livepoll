@@ -4,6 +4,10 @@ import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import * as appsync from 'aws-cdk-lib/aws-appsync';
 import * as path from 'path';
 import * as cognito from 'aws-cdk-lib/aws-cognito';
+import * as lambda from 'aws-cdk-lib/aws-lambda';
+import * as nodejs from 'aws-cdk-lib/aws-lambda-nodejs';
+import * as events from 'aws-cdk-lib/aws-events';
+import * as targets from 'aws-cdk-lib/aws-events-targets';
 
 export class BackendStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
@@ -21,6 +25,14 @@ export class BackendStack extends cdk.Stack {
       indexName: 'hostId-index',
       partitionKey: { name: 'hostId', type: dynamodb.AttributeType.STRING },
       sortKey: { name: 'createdAt', type: dynamodb.AttributeType.NUMBER },
+    });
+
+    // Sparse GSI — DynamoDB only indexes items that have both key attributes, so
+    // polls with no expiry never appear here and the scheduled sweep stays cheap.
+    pollsTable.addGlobalSecondaryIndex({
+      indexName: 'status-expiresAt-index',
+      partitionKey: { name: 'status', type: dynamodb.AttributeType.STRING },
+      sortKey: { name: 'expiresAt', type: dynamodb.AttributeType.NUMBER },
     });
 
     // DynamoDB table to store individual votes (audit/analytics log)
@@ -102,17 +114,12 @@ export class BackendStack extends cdk.Stack {
     pollsDataSource.createResolver('CreatePollResolver', {
       typeName: 'Mutation',
       fieldName: 'createPoll',
-      requestMappingTemplate: appsync.MappingTemplate.dynamoDbPutItem(
-        appsync.PrimaryKey.partition('pollId').auto(),
-        appsync.Values.projecting()
-          .attribute('hostId').is('$ctx.identity.sub')
-          .attribute('question').is('$ctx.args.question')
-          .attribute('options').is('$ctx.args.options')
-          .attribute('voteCounts').is('{}')
-          .attribute('status').is('"open"')
-          .attribute('createdAt').is('$util.time.nowEpochSeconds()')
+      requestMappingTemplate: appsync.MappingTemplate.fromFile(
+        path.join(__dirname, '../resolvers/createPoll.req.vtl')
       ),
-      responseMappingTemplate: appsync.MappingTemplate.dynamoDbResultItem(),
+      responseMappingTemplate: appsync.MappingTemplate.fromFile(
+        path.join(__dirname, '../resolvers/createPoll.res.vtl')
+      ),
     });
 
     // Connect the Votes table as its own data source — one record per voter per poll
@@ -171,6 +178,26 @@ export class BackendStack extends cdk.Stack {
       responseMappingTemplate: appsync.MappingTemplate.fromFile(
         path.join(__dirname, '../resolvers/closePoll.res.vtl')
       ),
+    });
+
+    // Scheduled sweep that closes polls past their expiry. See the handler's
+    // header comment for why this is the one place a Lambda is warranted.
+    const closeExpiredPollsFunction = new nodejs.NodejsFunction(this, 'CloseExpiredPollsFunction', {
+      entry: path.join(__dirname, '../lambda/closeExpiredPolls.ts'),
+      handler: 'handler',
+      runtime: lambda.Runtime.NODEJS_22_X,
+      timeout: cdk.Duration.minutes(1),
+      environment: {
+        TABLE_NAME: pollsTable.tableName,
+        INDEX_NAME: 'status-expiresAt-index',
+      },
+    });
+
+    pollsTable.grantReadWriteData(closeExpiredPollsFunction);
+
+    new events.Rule(this, 'CloseExpiredPollsSchedule', {
+      schedule: events.Schedule.rate(cdk.Duration.minutes(5)),
+      targets: [new targets.LambdaFunction(closeExpiredPollsFunction)],
     });
 
     // Output the API URL and Key so they're easy to find after each deploy
