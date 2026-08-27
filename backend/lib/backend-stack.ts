@@ -115,15 +115,49 @@ export class BackendStack extends cdk.Stack {
       responseMappingTemplate: appsync.MappingTemplate.dynamoDbResultItem(),
     });
 
-    // Resolver: submitVote mutation — atomically increments vote count for an option
-    pollsDataSource.createResolver('SubmitVoteResolver', {
-      typeName: 'Mutation',
-      fieldName: 'submitVote',
+    // Connect the Votes table as its own data source — one record per voter per poll
+    const votesDataSource = api.addDynamoDbDataSource('VotesDataSource', votesTable);
+
+    // submitVote runs as a two-step pipeline: claim the voter's slot in the Votes
+    // table, then increment the poll's counts. A single VTL resolver can only touch
+    // one table, so the duplicate-vote check needs its own function.
+    const recordVoteFunction = new appsync.AppsyncFunction(this, 'RecordVoteFunction', {
+      api,
+      name: 'recordVote',
+      dataSource: votesDataSource,
+      requestMappingTemplate: appsync.MappingTemplate.fromFile(
+        path.join(__dirname, '../resolvers/recordVote.req.vtl')
+      ),
+      responseMappingTemplate: appsync.MappingTemplate.fromFile(
+        path.join(__dirname, '../resolvers/recordVote.res.vtl')
+      ),
+    });
+
+    const incrementVoteCountFunction = new appsync.AppsyncFunction(this, 'IncrementVoteCountFunction', {
+      api,
+      name: 'incrementVoteCount',
+      dataSource: pollsDataSource,
       requestMappingTemplate: appsync.MappingTemplate.fromFile(
         path.join(__dirname, '../resolvers/submitVote.req.vtl')
       ),
       responseMappingTemplate: appsync.MappingTemplate.fromFile(
         path.join(__dirname, '../resolvers/submitVote.res.vtl')
+      ),
+    });
+
+    // Scoped to the api (matching what addDynamoDbDataSource().createResolver()
+    // does) so the construct path — and therefore the CloudFormation logical ID —
+    // matches the unit resolver this replaces. A new logical ID would make
+    // CloudFormation create a second resolver on Mutation.submitVote before
+    // deleting the old one, which AppSync rejects.
+    new appsync.Resolver(api, 'SubmitVoteResolver', {
+      api,
+      typeName: 'Mutation',
+      fieldName: 'submitVote',
+      pipelineConfig: [recordVoteFunction, incrementVoteCountFunction],
+      requestMappingTemplate: appsync.MappingTemplate.fromString('{}'),
+      responseMappingTemplate: appsync.MappingTemplate.fromString(
+        '$util.toJson($ctx.prev.result)'
       ),
     });
 
