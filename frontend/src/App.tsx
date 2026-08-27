@@ -3,12 +3,22 @@ import { Authenticator } from '@aws-amplify/ui-react'
 import '@aws-amplify/ui-react/styles.css'
 import CreatePoll from './CreatePoll'
 import PollView from './PollView'
+import Dashboard from './Dashboard'
+
 
 function CreatePollPage() {
   const navigate = useNavigate()
   return (
     <Authenticator>
       {() => <CreatePoll onPollCreated={(pollId) => navigate(`/poll/${pollId}`)} />}
+    </Authenticator>
+  )
+}
+
+function DashboardPage() {
+  return (
+    <Authenticator>
+      {() => <Dashboard />}
     </Authenticator>
   )
 }
@@ -25,6 +35,8 @@ function App() {
       <Routes>
         <Route path="/" element={<CreatePollPage />} />
         <Route path="/poll/:pollId" element={<PollPage />} />
+        <Route path="/dashboard" element={<DashboardPage />} />
+
       </Routes>
     </div>
   )
