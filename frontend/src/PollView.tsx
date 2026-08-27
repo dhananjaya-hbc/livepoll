@@ -11,6 +11,7 @@ const getPollQuery = /* GraphQL */ `
       options
       voteCounts
       status
+      expiresAt
     }
   }
 `
@@ -42,6 +43,18 @@ const closePollMutation = /* GraphQL */ `
   }
 `
 
+function formatRemaining(seconds: number): string {
+    if (seconds <= 0) return 'Voting has ended'
+
+    const hours = Math.floor(seconds / 3600)
+    const minutes = Math.floor((seconds % 3600) / 60)
+    const secs = seconds % 60
+
+    if (hours > 0) return `Closes in ${hours}h ${minutes}m`
+    if (minutes > 0) return `Closes in ${minutes}m ${secs}s`
+    return `Closes in ${secs}s`
+}
+
 // AppSync reports resolver $util.error() calls as a typed GraphQL error.
 function graphqlErrorType(err: unknown): string | undefined {
     return (err as { errors?: { errorType?: string }[] } | null)?.errors?.[0]?.errorType
@@ -63,6 +76,8 @@ function PollView({ pollId }: PollViewProps) {
     const [toastMessage, setToastMessage] = useState<string | null>(null)
     const [pollStatus, setPollStatus] = useState<string>('open')
     const [closing, setClosing] = useState(false)
+    const [expiresAt, setExpiresAt] = useState<number | null>(null)
+    const [now, setNow] = useState(() => Math.floor(Date.now() / 1000))
 
     // Load initial poll data
     useEffect(() => {
@@ -73,7 +88,17 @@ function PollView({ pollId }: PollViewProps) {
                     query: getPollQuery,
                     variables: { pollId },
                     authMode: 'apiKey',
-                }) as { data: { getPoll: { question: string; options: string[]; voteCounts: string; status: string } | null } }
+                }) as {
+                    data: {
+                        getPoll: {
+                            question: string
+                            options: string[]
+                            voteCounts: string
+                            status: string
+                            expiresAt: number | null
+                        } | null
+                    }
+                }
 
                 const poll = response.data.getPoll
 
@@ -87,6 +112,7 @@ function PollView({ pollId }: PollViewProps) {
                 setOptions(poll.options)
                 setVoteCounts(JSON.parse(poll.voteCounts || '{}'))
                 setPollStatus(poll.status)
+                setExpiresAt(poll.expiresAt ?? null)
                 setLoading(false)
             } catch (err) {
                 console.error('Failed to load poll:', err)
@@ -119,6 +145,24 @@ function PollView({ pollId }: PollViewProps) {
 
         return () => sub.unsubscribe()
     }, [pollId])
+
+    // Tick the countdown, and flip to closed the moment the deadline passes — the
+    // scheduled sweep can be up to five minutes behind, and the backend already
+    // rejects votes on an expired poll.
+    useEffect(() => {
+        const deadline = expiresAt
+        if (!deadline || pollStatus !== 'open') return
+
+        function tick() {
+            const current = Math.floor(Date.now() / 1000)
+            setNow(current)
+            if (current >= deadline!) setPollStatus('closed')
+        }
+
+        tick()
+        const timer = setInterval(tick, 1000)
+        return () => clearInterval(timer)
+    }, [expiresAt, pollStatus])
 
     async function handleVote(option: string) {
         setSubmitting(true)
@@ -240,6 +284,11 @@ function PollView({ pollId }: PollViewProps) {
                     {hasVoted ? 'Live Results' : 'Cast Your Vote'}
                 </p>
                 <h1 style={{ fontSize: '2.5rem', marginBottom: '2.5rem' }}>{question}</h1>
+                {expiresAt && pollStatus === 'open' && (
+                    <p className="mono-label" style={{ color: '#525252', marginBottom: '1.5rem' }}>
+                        {formatRemaining(expiresAt - now)}
+                    </p>
+                )}
                 <button
                     onClick={handleCopyLink}
                     className="mono-label"
