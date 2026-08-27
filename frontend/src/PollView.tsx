@@ -220,21 +220,14 @@ function PollView({ pollId }: PollViewProps) {
 
     if (loading) {
         return (
-            <div style={{ maxWidth: '640px', margin: '0 auto', padding: '4rem 1.5rem' }}>
-                <p className="mono-label" style={{ marginBottom: '1rem', color: '#525252' }}>
+            <div className="page" aria-busy="true">
+                <p className="mono-label muted" style={{ marginBottom: 'var(--space-4)' }}>
                     Loading
                 </p>
-                <div
-                    style={{
-                        height: '3.5rem',
-                        width: '70%',
-                        background: '#F5F5F5',
-                        marginBottom: '2.5rem',
-                    }}
-                />
-                <div style={{ height: '3.5rem', border: '2px solid #E5E5E5', marginBottom: '0.75rem' }} />
-                <div style={{ height: '3.5rem', border: '2px solid #E5E5E5', marginBottom: '0.75rem' }} />
-                <div style={{ height: '3.5rem', border: '2px solid #E5E5E5' }} />
+                <div className="skeleton" style={{ height: '3.5rem', width: '70%', marginBottom: 'var(--space-7)' }} />
+                <div className="skeleton-outline" style={{ height: '3.5rem', marginBottom: 'var(--space-3)' }} />
+                <div className="skeleton-outline" style={{ height: '3.5rem', marginBottom: 'var(--space-3)' }} />
+                <div className="skeleton-outline" style={{ height: '3.5rem' }} />
             </div>
         )
     }
@@ -242,28 +235,18 @@ function PollView({ pollId }: PollViewProps) {
     if (notFound) {
         return (
             <>
-                <div style={{ maxWidth: '640px', margin: '0 auto', padding: '4rem 1.5rem', textAlign: 'center' }}>
-                    <p className="mono-label" style={{ marginBottom: '1rem', color: '#525252' }}>
+                <div className="page" style={{ textAlign: 'center' }}>
+                    <p className="mono-label muted" style={{ marginBottom: 'var(--space-4)' }}>
                         404
                     </p>
-                    <h1 style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>
+                    <h1 style={{ marginBottom: 'var(--space-4)' }}>
                         This poll doesn't exist.
                     </h1>
 
-                    <p style={{ color: '#525252', marginBottom: '2rem' }}>
+                    <p className="muted" style={{ marginBottom: 'var(--space-6)' }}>
                         The link might be wrong, or the poll may have been removed.
                     </p>
-                    <a
-                        href="/"
-                        className="mono-label"
-                        style={{
-                            display: 'inline-block',
-                            background: '#000000',
-                            color: '#FFFFFF',
-                            padding: '0.9rem 2rem',
-                            textDecoration: 'none',
-                        }}
-                    >
+                    <a href="/" className="btn btn-primary mono-label" style={{ textDecoration: 'none' }}>
                         Create a New Poll →
                     </a>
                 </div>
@@ -279,34 +262,26 @@ function PollView({ pollId }: PollViewProps) {
 
     return (
         <>
-            <div style={{ maxWidth: '640px', margin: '0 auto', padding: '4rem 1.5rem' }}>
-                <p className="mono-label" style={{ marginBottom: '1rem', color: '#525252' }}>
+            <div className="page">
+                <p className="mono-label muted" style={{ marginBottom: 'var(--space-4)' }}>
                     {hasVoted ? 'Live Results' : 'Cast Your Vote'}
                 </p>
-                <h1 style={{ fontSize: '2.5rem', marginBottom: '2.5rem' }}>{question}</h1>
+                <h1 style={{ marginBottom: 'var(--space-7)' }}>{question}</h1>
                 {expiresAt && pollStatus === 'open' && (
-                    <p className="mono-label" style={{ color: '#525252', marginBottom: '1.5rem' }}>
+                    <p
+                        className="mono-label muted"
+                        style={{ marginBottom: 'var(--space-5)' }}
+                        role="timer"
+                        aria-live="off"
+                    >
                         {formatRemaining(expiresAt - now)}
                     </p>
                 )}
                 <button
+                    type="button"
+                    className="btn btn-ghost mono-label"
                     onClick={handleCopyLink}
-                    className="mono-label"
-                    style={{
-                        background: 'transparent',
-                        border: '1px solid #000000',
-                        padding: '0.6rem 1.2rem',
-                        marginBottom: '2.5rem',
-                        transition: 'background 100ms, color 100ms',
-                    }}
-                    onMouseEnter={(e) => {
-                        e.currentTarget.style.background = '#000000'
-                        e.currentTarget.style.color = '#FFFFFF'
-                    }}
-                    onMouseLeave={(e) => {
-                        e.currentTarget.style.background = 'transparent'
-                        e.currentTarget.style.color = '#000000'
-                    }}
+                    style={{ marginBottom: 'var(--space-7)' }}
                 >
                     {copied ? '✓ Link Copied' : 'Copy Link →'}
                 </button>
@@ -316,38 +291,22 @@ function PollView({ pollId }: PollViewProps) {
                         {options.map((option) => (
                             <button
                                 key={option}
+                                type="button"
+                                className="btn btn-option"
                                 onClick={() => handleVote(option)}
                                 disabled={submitting}
-                                style={{
-                                    display: 'block',
-                                    width: '100%',
-                                    textAlign: 'left',
-                                    padding: '1.1rem 1.5rem',
-                                    marginBottom: '0.75rem',
-                                    background: '#FFFFFF',
-                                    border: '2px solid #000000',
-                                    fontSize: '1.1rem',
-                                    transition: 'background 100ms, color 100ms',
-                                }}
-                                onMouseEnter={(e) => {
-                                    e.currentTarget.style.background = '#000000'
-                                    e.currentTarget.style.color = '#FFFFFF'
-                                }}
-                                onMouseLeave={(e) => {
-                                    e.currentTarget.style.background = '#FFFFFF'
-                                    e.currentTarget.style.color = '#000000'
-                                }}
+                                aria-busy={submitting}
                             >
                                 {option}
                             </button>
                         ))}
                     </div>
                 ) : !hasVoted && pollStatus === 'closed' ? (
-                    <div style={{ textAlign: 'center', padding: '2rem 0' }}>
-                        <p className="mono-label" style={{ color: '#525252', marginBottom: '1rem' }}>
+                    <div className="empty-state">
+                        <p className="mono-label muted" style={{ marginBottom: 'var(--space-4)' }}>
                             This poll is closed.
                         </p>
-                        <p style={{ color: '#525252' }}>Voting has ended for this poll.</p>
+                        <p className="muted">Voting has ended for this poll.</p>
                     </div>
                 ) : (
                     <div>
@@ -355,52 +314,42 @@ function PollView({ pollId }: PollViewProps) {
                             const count = voteCounts[option] || 0
                             const pct = totalVotes > 0 ? Math.round((count / totalVotes) * 100) : 0
                             return (
-                                <div key={option} style={{ marginBottom: '1.5rem' }}>
-                                    <div
-                                        style={{
-                                            display: 'flex',
-                                            justifyContent: 'space-between',
-                                            marginBottom: '0.4rem',
-                                            fontSize: '1.05rem',
-                                        }}
-                                    >
+                                <div key={option} className="result-row">
+                                    <div className="result-label">
                                         <span>{option}</span>
                                         <span className="mono-label">{count} · {pct}%</span>
                                     </div>
-                                    <div style={{ height: '10px', background: '#F5F5F5', border: '1px solid #000000' }}>
-                                        <div
-                                            style={{
-                                                height: '100%',
-                                                width: `${pct}%`,
-                                                background: '#000000',
-                                                transition: 'width 300ms ease',
-                                            }}
-                                        />
+                                    <div
+                                        className="result-track"
+                                        role="meter"
+                                        aria-label={option}
+                                        aria-valuenow={pct}
+                                        aria-valuemin={0}
+                                        aria-valuemax={100}
+                                    >
+                                        <div className="result-fill" style={{ width: `${pct}%` }} />
                                     </div>
                                 </div>
                             )
                         })}
-                        <p className="mono-label" style={{ marginTop: '2rem', color: '#525252' }}>
+                        <p className="mono-label muted" style={{ marginTop: 'var(--space-6)' }} aria-live="polite">
                             {totalVotes} total vote{totalVotes !== 1 ? 's' : ''}
                         </p>
 
                         {pollStatus === 'open' && (
                             <button
+                                type="button"
+                                className="btn btn-ghost mono-label"
                                 onClick={handleClosePoll}
                                 disabled={closing}
-                                className="mono-label"
-                                style={{
-                                    marginTop: '2rem',
-                                    background: 'transparent',
-                                    border: '1px solid #000000',
-                                    padding: '0.7rem 1.5rem',
-                                }}
+                                aria-busy={closing}
+                                style={{ marginTop: 'var(--space-6)' }}
                             >
                                 {closing ? 'Closing…' : 'Close Poll'}
                             </button>
                         )}
                         {pollStatus === 'closed' && (
-                            <p className="mono-label" style={{ marginTop: '2rem', color: '#525252' }}>
+                            <p className="mono-label muted" style={{ marginTop: 'var(--space-6)' }}>
                                 This poll is closed.
                             </p>
                         )}
