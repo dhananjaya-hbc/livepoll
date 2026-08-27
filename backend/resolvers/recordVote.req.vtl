@@ -1,0 +1,19 @@
+## Claims this voter's one slot on this poll. The conditional put fails if the
+## same voter has already voted, which stops the pipeline before any increment.
+#set($voteId = "${ctx.args.pollId}#${ctx.args.voterId}")
+{
+    "version": "2018-05-29",
+    "operation": "PutItem",
+    "key": {
+        "voteId": $util.dynamodb.toDynamoDBJson($voteId)
+    },
+    "attributeValues": {
+        "pollId": $util.dynamodb.toDynamoDBJson($ctx.args.pollId),
+        "voterId": $util.dynamodb.toDynamoDBJson($ctx.args.voterId),
+        "option": $util.dynamodb.toDynamoDBJson($ctx.args.option),
+        "createdAt": $util.dynamodb.toDynamoDBJson($util.time.nowEpochSeconds())
+    },
+    "condition": {
+        "expression": "attribute_not_exists(voteId)"
+    }
+}
