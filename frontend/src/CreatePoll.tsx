@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { generateClient } from 'aws-amplify/api'
 import Toast from './Toast'
+import { Link } from 'react-router-dom'
+
 
 const createPollMutation = /* GraphQL */ `
   mutation CreatePoll($question: String!, $options: [String!]!) {
@@ -73,9 +75,13 @@ function CreatePoll({ onPollCreated }: CreatePollProps) {
     return (
         <>
             <div style={{ maxWidth: '640px', margin: '0 auto', padding: '4rem 1.5rem' }}>
-                <p className="mono-label" style={{ marginBottom: '1rem', color: '#525252' }}>
-                    LivePoll
-                </p>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                    <p className="mono-label" style={{ color: '#525252' }}>LivePoll</p>
+                    <Link to="/dashboard" className="mono-label" style={{ color: '#000000' }}>
+                        My Polls →
+                    </Link>
+                </div>
+
                 <h1 style={{ fontSize: '3.25rem', marginBottom: '1rem' }}>
                     Ask the room.<br />Watch it answer.
                 </h1>
