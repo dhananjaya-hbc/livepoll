@@ -5,8 +5,8 @@ import { Link } from 'react-router-dom'
 
 
 const createPollMutation = /* GraphQL */ `
-  mutation CreatePoll($question: String!, $options: [String!]!) {
-    createPoll(question: $question, options: $options) {
+  mutation CreatePoll($question: String!, $options: [String!]!, $expiresAt: AWSTimestamp) {
+    createPoll(question: $question, options: $options, expiresAt: $expiresAt) {
       pollId
       question
       options
@@ -14,6 +14,13 @@ const createPollMutation = /* GraphQL */ `
     }
   }
 `
+
+const EXPIRY_OPTIONS = [
+    { label: 'Never', seconds: 0 },
+    { label: '15 minutes', seconds: 15 * 60 },
+    { label: '1 hour', seconds: 60 * 60 },
+    { label: '24 hours', seconds: 24 * 60 * 60 },
+]
 
 interface CreatePollProps {
     onPollCreated: (pollId: string) => void
@@ -25,6 +32,7 @@ function CreatePoll({ onPollCreated }: CreatePollProps) {
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [toastMessage, setToastMessage] = useState<string | null>(null)
+    const [expiresIn, setExpiresIn] = useState(0)
 
     function updateOption(index: number, value: string) {
         const next = [...options]
@@ -59,7 +67,13 @@ function CreatePoll({ onPollCreated }: CreatePollProps) {
             const client = generateClient()   // ← make sure this line exists
             const response = await client.graphql({
                 query: createPollMutation,
-                variables: { question: question.trim(), options: trimmedOptions },
+                variables: {
+                    question: question.trim(),
+                    options: trimmedOptions,
+                    // null tells the resolver to omit the attribute entirely, which
+                    // keeps the poll out of the sparse expiry index.
+                    expiresAt: expiresIn > 0 ? Math.floor(Date.now() / 1000) + expiresIn : null,
+                },
                 authMode: 'userPool',
             }) as { data: { createPoll: { pollId: string } } }
             onPollCreated(response.data.createPoll.pollId)
@@ -168,6 +182,38 @@ function CreatePoll({ onPollCreated }: CreatePollProps) {
                                 + Add option
                             </button>
                         )}
+                    </div>
+
+                    {/* Expiry */}
+                    <div style={{ marginBottom: '2rem' }}>
+                        <label
+                            className="mono-label"
+                            htmlFor="expires-in"
+                            style={{ display: 'block', marginBottom: '0.5rem' }}
+                        >
+                            Poll expires in
+                        </label>
+                        <select
+                            id="expires-in"
+                            value={expiresIn}
+                            onChange={(e) => setExpiresIn(Number(e.target.value))}
+                            style={{
+                                width: '100%',
+                                padding: '0.6rem 0',
+                                fontSize: '1.05rem',
+                                fontFamily: "'Source Serif 4', Georgia, serif",
+                                border: 'none',
+                                borderBottom: '2px solid #000000',
+                                outline: 'none',
+                                background: 'transparent',
+                            }}
+                        >
+                            {EXPIRY_OPTIONS.map((option) => (
+                                <option key={option.seconds} value={option.seconds}>
+                                    {option.label}
+                                </option>
+                            ))}
+                        </select>
                     </div>
 
                     {error && (
