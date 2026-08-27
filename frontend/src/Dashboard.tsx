@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { generateClient } from 'aws-amplify/api'
 
 const listMyPollsQuery = /* GraphQL */ `
@@ -7,6 +7,7 @@ const listMyPollsQuery = /* GraphQL */ `
     listMyPolls {
       pollId
       question
+      options
       status
       voteCounts
       createdAt
@@ -17,6 +18,7 @@ const listMyPollsQuery = /* GraphQL */ `
 interface PollSummary {
     pollId: string
     question: string
+    options: string[]
     status: string
     voteCounts: string
     createdAt: number
@@ -26,6 +28,14 @@ function Dashboard() {
     const [polls, setPolls] = useState<PollSummary[]>([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState(false)
+    const navigate = useNavigate()
+
+    // Duplication needs no backend support: the create form already knows how to
+    // build a poll, so hand it the question and options and let the host edit
+    // before submitting. Vote counts start fresh because it is a new poll.
+    function duplicatePoll(poll: PollSummary) {
+        navigate('/', { state: { question: poll.question, options: poll.options } })
+    }
 
     useEffect(() => {
         async function loadPolls() {
@@ -98,19 +108,30 @@ function Dashboard() {
             )}
 
             {!loading && !error && polls.map((poll) => (
-                <Link key={poll.pollId} to={`/poll/${poll.pollId}`} className="card">
+                <article key={poll.pollId} className="card">
                     <div className="card-title-row">
-                        <span style={{ fontSize: '1.15rem' }}>{poll.question}</span>
+                        <Link to={`/poll/${poll.pollId}`} className="card-title">
+                            {poll.question}
+                        </Link>
                         <span
                             className={`mono-label badge${poll.status === 'open' ? ' badge-open' : ''}`}
                         >
                             {poll.status}
                         </span>
                     </div>
-                    <p className="mono-label muted">
-                        {totalVotes(poll.voteCounts)} vote{totalVotes(poll.voteCounts) !== 1 ? 's' : ''} · {formatDate(poll.createdAt)}
-                    </p>
-                </Link>
+                    <div className="card-footer">
+                        <p className="mono-label muted">
+                            {totalVotes(poll.voteCounts)} vote{totalVotes(poll.voteCounts) !== 1 ? 's' : ''} · {formatDate(poll.createdAt)}
+                        </p>
+                        <button
+                            type="button"
+                            className="btn btn-link mono-label"
+                            onClick={() => duplicatePoll(poll)}
+                        >
+                            Duplicate →
+                        </button>
+                    </div>
+                </article>
             ))}
         </div>
     )
