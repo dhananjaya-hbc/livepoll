@@ -4,6 +4,7 @@ import '@aws-amplify/ui-react/styles.css'
 import CreatePoll from './CreatePoll'
 import PollView from './PollView'
 import Dashboard from './Dashboard'
+import Analytics from './Analytics'
 import ErrorBoundary from './ErrorBoundary'
 import NotFound from './NotFound'
 
@@ -25,6 +26,16 @@ function DashboardPage() {
   )
 }
 
+function AnalyticsPage() {
+  const { pollId } = useParams<{ pollId: string }>()
+  if (!pollId) return null
+  return (
+    <Authenticator>
+      {() => <Analytics pollId={pollId} />}
+    </Authenticator>
+  )
+}
+
 function PollPage() {
   const { pollId } = useParams<{ pollId: string }>()
   if (!pollId) return null
@@ -39,6 +50,7 @@ function App() {
           <Route path="/" element={<CreatePollPage />} />
           <Route path="/poll/:pollId" element={<PollPage />} />
           <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/poll/:pollId/analytics" element={<AnalyticsPage />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </ErrorBoundary>
