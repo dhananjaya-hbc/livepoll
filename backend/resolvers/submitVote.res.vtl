@@ -1,1 +1,7 @@
+#if($ctx.error)
+  #if($ctx.error.type == "DynamoDB:ConditionalCheckFailedException")
+    $util.error("This poll is closed. Voting has ended.", "PollClosed")
+  #end
+  $util.error($ctx.error.message, $ctx.error.type)
+#end
 $util.toJson($ctx.result)
