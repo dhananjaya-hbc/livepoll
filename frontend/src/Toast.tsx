@@ -12,37 +12,9 @@ function Toast({ message, onDismiss }: ToastProps) {
   }, [onDismiss])
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        bottom: '2rem',
-        left: '50%',
-        transform: 'translateX(-50%)',
-        background: '#000000',
-        color: '#FFFFFF',
-        padding: '1rem 1.75rem',
-        border: '1px solid #000000',
-        fontFamily: "'Source Serif 4', Georgia, serif",
-        fontSize: '1rem',
-        display: 'flex',
-        alignItems: 'center',
-        gap: '1rem',
-        zIndex: 1000,
-      }}
-    >
+    <div className="toast" role="status" aria-live="polite">
       <span>{message}</span>
-      <button
-        onClick={onDismiss}
-        style={{
-          background: 'none',
-          border: 'none',
-          color: '#FFFFFF',
-          fontSize: '1.1rem',
-          lineHeight: 1,
-          padding: 0,
-        }}
-        aria-label="Dismiss"
-      >
+      <button type="button" className="btn btn-icon" onClick={onDismiss} aria-label="Dismiss">
         ×
       </button>
     </div>
