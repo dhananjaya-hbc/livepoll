@@ -1,0 +1,24 @@
+#if($ctx.identity.sub == "")
+  $util.unauthorized()
+#end
+#set($poll = {
+    "hostId": $ctx.identity.sub,
+    "question": $ctx.args.question,
+    "options": $ctx.args.options,
+    "voteCounts": {},
+    "status": "open",
+    "createdAt": $util.time.nowEpochSeconds()
+})
+## Only set when the host picked an expiry. The status/expiresAt index is sparse,
+## so polls without it are never picked up by the scheduled sweep.
+#if($ctx.args.expiresAt)
+    $util.qr($poll.put("expiresAt", $ctx.args.expiresAt))
+#end
+{
+    "version": "2018-05-29",
+    "operation": "PutItem",
+    "key": {
+        "pollId": $util.dynamodb.toDynamoDBJson($util.autoId())
+    },
+    "attributeValues": $util.dynamodb.toMapValuesJson($poll)
+}
