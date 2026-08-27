@@ -1,0 +1,9 @@
+#if($ctx.error)
+  $util.error($ctx.error.message, $ctx.error.type)
+#end
+## A missing poll and someone else's poll return the same error on purpose —
+## otherwise this would confirm whether a given pollId exists.
+#if(!$ctx.result || $ctx.result.hostId != $ctx.identity.sub)
+  $util.unauthorized()
+#end
+$util.toJson($ctx.result)
