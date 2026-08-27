@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { generateClient } from 'aws-amplify/api'
 import Toast from './Toast'
+import { getVoterId } from './voterId'
 
 const getPollQuery = /* GraphQL */ `
   query GetPoll($pollId: ID!) {
@@ -15,8 +16,8 @@ const getPollQuery = /* GraphQL */ `
 `
 
 const submitVoteMutation = /* GraphQL */ `
-  mutation SubmitVote($pollId: ID!, $option: String!) {
-    submitVote(pollId: $pollId, option: $option) {
+  mutation SubmitVote($pollId: ID!, $option: String!, $voterId: String!) {
+    submitVote(pollId: $pollId, option: $option, voterId: $voterId) {
       pollId
       voteCounts
     }
@@ -40,6 +41,11 @@ const closePollMutation = /* GraphQL */ `
     }
   }
 `
+
+// AppSync reports resolver $util.error() calls as a typed GraphQL error.
+function graphqlErrorType(err: unknown): string | undefined {
+    return (err as { errors?: { errorType?: string }[] } | null)?.errors?.[0]?.errorType
+}
 
 interface PollViewProps {
     pollId: string
@@ -120,13 +126,24 @@ function PollView({ pollId }: PollViewProps) {
             const client = generateClient()
             await client.graphql({
                 query: submitVoteMutation,
-                variables: { pollId, option },
+                variables: { pollId, option, voterId: getVoterId() },
                 authMode: 'apiKey',
             })
             setHasVoted(true)
         } catch (err) {
             console.error('Vote failed:', err)
-            setToastMessage('This poll may be closed, or your vote could not be submitted.')
+            const errorType = graphqlErrorType(err)
+
+            if (errorType === 'AlreadyVoted') {
+                // Their vote is already counted — show results rather than a dead end.
+                setHasVoted(true)
+                setToastMessage('You have already voted in this poll.')
+            } else if (errorType === 'PollClosed') {
+                setPollStatus('closed')
+                setToastMessage('This poll is closed. Voting has ended.')
+            } else {
+                setToastMessage('Your vote could not be submitted. Please try again.')
+            }
         } finally {
             setSubmitting(false)
         }
