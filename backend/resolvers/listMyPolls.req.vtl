@@ -1,0 +1,15 @@
+#if($ctx.identity.sub == "")
+  $util.unauthorized()
+#end
+{
+    "version": "2017-02-28",
+    "operation": "Query",
+    "index": "hostId-index",
+    "query": {
+        "expression": "hostId = :hostId",
+        "expressionValues": {
+            ":hostId": $util.dynamodb.toDynamoDBJson($ctx.identity.sub)
+        }
+    },
+    "scanIndexForward": false
+}
