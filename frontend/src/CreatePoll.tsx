@@ -88,76 +88,55 @@ function CreatePoll({ onPollCreated }: CreatePollProps) {
 
     return (
         <>
-            <div style={{ maxWidth: '640px', margin: '0 auto', padding: '4rem 1.5rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                    <p className="mono-label" style={{ color: '#525252' }}>LivePoll</p>
-                    <Link to="/dashboard" className="mono-label" style={{ color: '#000000' }}>
+            <div className="page">
+                <div className="page-header">
+                    <p className="mono-label muted">LivePoll</p>
+                    <Link to="/dashboard" className="mono-label">
                         My Polls →
                     </Link>
                 </div>
 
-                <h1 style={{ fontSize: '3.25rem', marginBottom: '1rem' }}>
+                <h1 style={{ fontSize: 'var(--text-display)', marginBottom: 'var(--space-4)' }}>
                     Ask the room.<br />Watch it answer.
                 </h1>
-                <p style={{ color: '#525252', fontSize: '1.1rem', marginBottom: '3rem', maxWidth: '480px' }}>
+                <p className="muted" style={{ fontSize: '1.1rem', marginBottom: 'var(--space-8)', maxWidth: '480px' }}>
                     Create a poll, share the link, and watch results update live as votes come in — no refresh needed.
                 </p>
                 <form onSubmit={handleSubmit}>
-                    {/* Question field */}
-                    <div style={{ marginBottom: '2rem' }}>
-                        <label className="mono-label" style={{ display: 'block', marginBottom: '0.5rem' }}>
+                    <div className="field-group">
+                        <label className="mono-label" htmlFor="poll-question">
                             Question
                         </label>
                         <input
+                            id="poll-question"
                             type="text"
+                            className="field field-lg"
                             value={question}
                             onChange={(e) => setQuestion(e.target.value)}
                             placeholder="What do you want to ask?"
-                            style={{
-                                width: '100%',
-                                padding: '0.75rem 0',
-                                fontSize: '1.25rem',
-                                border: 'none',
-                                borderBottom: '2px solid #000000',
-                                outline: 'none',
-                                background: 'transparent',
-                            }}
                         />
                     </div>
 
-                    {/* Options */}
-                    <div style={{ marginBottom: '2rem' }}>
-                        <label className="mono-label" style={{ display: 'block', marginBottom: '0.5rem' }}>
+                    <fieldset className="field-group" style={{ border: 'none' }}>
+                        <legend className="mono-label" style={{ marginBottom: 'var(--space-2)' }}>
                             Options
-                        </label>
+                        </legend>
                         {options.map((opt, i) => (
-                            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
+                            <div key={i} className="field-row">
                                 <input
                                     type="text"
+                                    className="field"
+                                    style={{ flex: 1 }}
                                     value={opt}
                                     onChange={(e) => updateOption(i, e.target.value)}
                                     placeholder={`Option ${i + 1}`}
-                                    style={{
-                                        flex: 1,
-                                        padding: '0.6rem 0',
-                                        fontSize: '1.05rem',
-                                        border: 'none',
-                                        borderBottom: '2px solid #000000',
-                                        outline: 'none',
-                                        background: 'transparent',
-                                    }}
+                                    aria-label={`Option ${i + 1}`}
                                 />
                                 {options.length > 2 && (
                                     <button
                                         type="button"
+                                        className="btn btn-icon"
                                         onClick={() => removeOption(i)}
-                                        style={{
-                                            background: 'none',
-                                            border: 'none',
-                                            color: '#525252',
-                                            fontSize: '1.25rem',
-                                            lineHeight: 1,
-                                        }}
                                         aria-label={`Remove option ${i + 1}`}
                                     >
                                         ×
@@ -169,44 +148,24 @@ function CreatePoll({ onPollCreated }: CreatePollProps) {
                         {options.length < 6 && (
                             <button
                                 type="button"
+                                className="btn btn-link"
                                 onClick={addOption}
-                                style={{
-                                    background: 'none',
-                                    border: 'none',
-                                    borderBottom: '1px solid #000000',
-                                    padding: '0.25rem 0',
-                                    fontSize: '0.95rem',
-                                    marginTop: '0.5rem',
-                                }}
+                                style={{ marginTop: 'var(--space-2)' }}
                             >
                                 + Add option
                             </button>
                         )}
-                    </div>
+                    </fieldset>
 
-                    {/* Expiry */}
-                    <div style={{ marginBottom: '2rem' }}>
-                        <label
-                            className="mono-label"
-                            htmlFor="expires-in"
-                            style={{ display: 'block', marginBottom: '0.5rem' }}
-                        >
+                    <div className="field-group">
+                        <label className="mono-label" htmlFor="expires-in">
                             Poll expires in
                         </label>
                         <select
                             id="expires-in"
+                            className="field"
                             value={expiresIn}
                             onChange={(e) => setExpiresIn(Number(e.target.value))}
-                            style={{
-                                width: '100%',
-                                padding: '0.6rem 0',
-                                fontSize: '1.05rem',
-                                fontFamily: "'Source Serif 4', Georgia, serif",
-                                border: 'none',
-                                borderBottom: '2px solid #000000',
-                                outline: 'none',
-                                background: 'transparent',
-                            }}
                         >
                             {EXPIRY_OPTIONS.map((option) => (
                                 <option key={option.seconds} value={option.seconds}>
@@ -217,32 +176,16 @@ function CreatePoll({ onPollCreated }: CreatePollProps) {
                     </div>
 
                     {error && (
-                        <p style={{ color: '#000000', fontStyle: 'italic', marginBottom: '1.5rem' }}>
+                        <p role="alert" style={{ fontStyle: 'italic', marginBottom: 'var(--space-5)' }}>
                             {error}
                         </p>
                     )}
 
                     <button
                         type="submit"
+                        className="btn btn-primary mono-label"
                         disabled={loading}
-                        className="mono-label"
-                        style={{
-                            background: '#000000',
-                            color: '#FFFFFF',
-                            border: 'none',
-                            padding: '1rem 2.5rem',
-                            transition: 'background 100ms, color 100ms',
-                        }}
-                        onMouseEnter={(e) => {
-                            e.currentTarget.style.background = '#FFFFFF'
-                            e.currentTarget.style.color = '#000000'
-                            e.currentTarget.style.outline = '2px solid #000000'
-                        }}
-                        onMouseLeave={(e) => {
-                            e.currentTarget.style.background = '#000000'
-                            e.currentTarget.style.color = '#FFFFFF'
-                            e.currentTarget.style.outline = 'none'
-                        }}
+                        aria-busy={loading}
                     >
                         {loading ? 'Creating…' : 'Create Poll →'}
                     </button>
