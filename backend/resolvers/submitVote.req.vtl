@@ -15,12 +15,13 @@
         }
     },
     "condition": {
-        "expression": "#status = :open",
+        "expression": "#status = :open AND (attribute_not_exists(expiresAt) OR expiresAt > :now)",
         "expressionNames": {
             "#status": "status"
         },
         "expressionValues": {
-            ":open": $util.dynamodb.toDynamoDBJson("open")
+            ":open": $util.dynamodb.toDynamoDBJson("open"),
+            ":now": $util.dynamodb.toDynamoDBJson($util.time.nowEpochSeconds())
         }
     }
 }
