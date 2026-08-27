@@ -1,0 +1,41 @@
+name: Deploy Frontend
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'frontend/**'
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::686061660942:role/GitHubActionsDeployRole
+          aws-region: us-east-1
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Build frontend
+        working-directory: frontend
+        run: npm run build
+
+      - name: Install backend dependencies (for CDK)
+        working-directory: backend
+        run: npm ci
+
+      - name: Deploy FrontendStack with CDK
+        working-directory: backend
+        run: npx cdk deploy FrontendStack --require-approval never
