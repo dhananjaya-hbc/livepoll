@@ -144,6 +144,23 @@ describe('PollView', () => {
     ).toBeInTheDocument()
   })
 
+  test('counts down while an expiring poll is still open', async () => {
+    mockGraphql(mockPoll({ expiresAt: Math.floor(Date.now() / 1000) + 3600 }))
+    render(<PollView pollId="poll-1" />)
+
+    expect(await screen.findByText(/^Closes in /)).toBeInTheDocument()
+  })
+
+  test('treats a poll past its expiry as closed without waiting for the sweep', async () => {
+    mockGraphql(mockPoll({ expiresAt: Math.floor(Date.now() / 1000) - 10 }))
+    render(<PollView pollId="poll-1" />)
+
+    expect(
+      await screen.findByText('Voting has ended for this poll.')
+    ).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Tea' })).not.toBeInTheDocument()
+  })
+
   test('unsubscribes from vote updates on unmount', async () => {
     mockGraphql(mockPoll())
     const { unmount } = render(<PollView pollId="poll-1" />)
