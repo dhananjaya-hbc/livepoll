@@ -16,6 +16,12 @@ export class BackendStack extends cdk.Stack {
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
+    // GSI so a host's polls can be queried directly instead of scanning the table
+    pollsTable.addGlobalSecondaryIndex({
+      indexName: 'hostId-index',
+      partitionKey: { name: 'hostId', type: dynamodb.AttributeType.STRING },
+      sortKey: { name: 'createdAt', type: dynamodb.AttributeType.NUMBER },
+    });
 
     // DynamoDB table to store individual votes (audit/analytics log)
     const votesTable = new dynamodb.Table(this, 'VotesTable', {
@@ -80,6 +86,17 @@ export class BackendStack extends cdk.Stack {
       ),
       responseMappingTemplate: appsync.MappingTemplate.dynamoDbResultItem(),
     });
+    // Resolver: listMyPolls query — a host's own polls, newest first
+    pollsDataSource.createResolver('ListMyPollsResolver', {
+      typeName: 'Query',
+      fieldName: 'listMyPolls',
+      requestMappingTemplate: appsync.MappingTemplate.fromFile(
+        path.join(__dirname, '../resolvers/listMyPolls.req.vtl')
+      ),
+      responseMappingTemplate: appsync.MappingTemplate.fromFile(
+        path.join(__dirname, '../resolvers/listMyPolls.res.vtl')
+      ),
+    });
 
     // Resolver: createPoll mutation — creates a new poll with a generated ID
     pollsDataSource.createResolver('CreatePollResolver', {
@@ -110,7 +127,7 @@ export class BackendStack extends cdk.Stack {
       ),
     });
 
-        // Resolver: closePoll mutation — only the poll's creator can close it
+    // Resolver: closePoll mutation — only the poll's creator can close it
     pollsDataSource.createResolver('ClosePollResolver', {
       typeName: 'Mutation',
       fieldName: 'closePoll',
