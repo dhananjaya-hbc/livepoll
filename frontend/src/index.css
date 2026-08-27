@@ -1,5 +1,9 @@
 @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400;1,600&family=Source+Serif+4:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
 
+/* ---------------------------------------------------------------------------
+   Minimalist Monochrome — design tokens
+   Pure black/white, zero radius, instant transitions. No shadows, no gradients.
+   --------------------------------------------------------------------------- */
 :root {
   --background: #FFFFFF;
   --foreground: #000000;
@@ -7,6 +11,29 @@
   --muted-foreground: #525252;
   --border: #000000;
   --border-light: #E5E5E5;
+
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-7: 2.5rem;
+  --space-8: 4rem;
+
+  --text-sm: 0.95rem;
+  --text-base: 1.05rem;
+  --text-lg: 1.25rem;
+  --text-title: 2.5rem;
+  --text-display: 3.25rem;
+
+  --serif: 'Source Serif 4', Georgia, serif;
+  --display: 'Playfair Display', Georgia, serif;
+  --mono: 'JetBrains Mono', monospace;
+
+  /* Motion stays instant and sharp — this is a state change, not an animation. */
+  --transition-fast: 100ms;
+  --transition-bar: 300ms;
 }
 
 * {
@@ -18,30 +45,371 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: 'Source Serif 4', Georgia, serif;
+  font-family: var(--serif);
   font-size: 1.125rem;
   line-height: 1.625;
   -webkit-font-smoothing: antialiased;
 }
 
 h1, h2, h3, h4 {
-  font-family: 'Playfair Display', Georgia, serif;
+  font-family: var(--display);
   line-height: 1;
   letter-spacing: -0.025em;
 }
 
+h1 { font-size: var(--text-title); }
+
 button {
-  font-family: 'Source Serif 4', Georgia, serif;
+  font-family: var(--serif);
   cursor: pointer;
+  color: inherit;
 }
 
-input, textarea {
-  font-family: 'Source Serif 4', Georgia, serif;
+input, textarea, select {
+  font-family: var(--serif);
+  color: inherit;
+}
+
+/* One focus treatment everywhere. Keyboard users get the same affordance mouse
+   users get from :hover — the previous JS mouseenter handlers gave them none. */
+:focus-visible {
+  outline: 2px solid var(--foreground);
+  outline-offset: 2px;
 }
 
 .mono-label {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--mono);
   font-size: 0.75rem;
   letter-spacing: 0.1em;
   text-transform: uppercase;
+}
+
+.muted {
+  color: var(--muted-foreground);
+}
+
+/* --------------------------------------------------------------- Layout --- */
+
+.page {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: var(--space-8) var(--space-5);
+  animation: page-in 180ms ease-out;
+}
+
+@keyframes page-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: none; }
+}
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-4);
+  margin-bottom: var(--space-4);
+}
+
+.field-group {
+  margin-bottom: var(--space-6);
+}
+
+/* -------------------------------------------------------------- Buttons --- */
+
+.btn {
+  display: inline-block;
+  border: none;
+  background: none;
+  /* 44px minimum touch target */
+  min-height: 44px;
+  transition:
+    background var(--transition-fast),
+    color var(--transition-fast),
+    border-color var(--transition-fast);
+}
+
+.btn:active {
+  transform: translateY(1px);
+}
+
+.btn[disabled] {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+/* Pulses while an action is in flight, so "Creating…" reads as busy rather
+   than as a button that stopped responding. */
+.btn[aria-busy='true'] {
+  animation: pulse 900ms ease-in-out infinite;
+  cursor: progress;
+}
+
+@keyframes pulse {
+  50% { opacity: 0.5; }
+}
+
+.btn-primary {
+  background: var(--foreground);
+  color: var(--background);
+  padding: var(--space-4) var(--space-7);
+  outline: 2px solid transparent;
+}
+
+.btn-primary:hover:not([disabled]),
+.btn-primary:focus-visible {
+  background: var(--background);
+  color: var(--foreground);
+  outline: 2px solid var(--foreground);
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--foreground);
+  border: 1px solid var(--border);
+  padding: var(--space-3) var(--space-5);
+}
+
+.btn-ghost:hover:not([disabled]),
+.btn-ghost:focus-visible {
+  background: var(--foreground);
+  color: var(--background);
+}
+
+/* Vote options — body-serif, full width, the primary tap target on mobile. */
+.btn-option {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: var(--space-4) var(--space-5);
+  margin-bottom: var(--space-3);
+  background: var(--background);
+  border: 2px solid var(--border);
+  font-size: 1.1rem;
+}
+
+.btn-option:hover:not([disabled]),
+.btn-option:focus-visible {
+  background: var(--foreground);
+  color: var(--background);
+}
+
+.btn-link {
+  border-bottom: 1px solid var(--border);
+  padding: var(--space-1) 0;
+  font-size: var(--text-sm);
+  min-height: auto;
+}
+
+.btn-link:hover,
+.btn-link:focus-visible {
+  background: var(--muted);
+}
+
+/* Bare icon button (remove option). Square so it clears 44px on touch. */
+.btn-icon {
+  width: 44px;
+  min-width: 44px;
+  color: var(--muted-foreground);
+  font-size: 1.25rem;
+  line-height: 1;
+}
+
+.btn-icon:hover,
+.btn-icon:focus-visible {
+  color: var(--foreground);
+}
+
+/* --------------------------------------------------------------- Fields --- */
+
+.field {
+  width: 100%;
+  padding: var(--space-3) 0;
+  font-size: var(--text-base);
+  border: none;
+  border-bottom: 2px solid var(--border);
+  background: transparent;
+}
+
+.field-lg {
+  font-size: var(--text-lg);
+}
+
+.field:focus {
+  background: var(--muted);
+}
+
+.field-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+
+label {
+  display: block;
+  margin-bottom: var(--space-2);
+}
+
+/* ---------------------------------------------------------------- Cards --- */
+
+.card {
+  display: block;
+  border: 2px solid var(--border);
+  padding: var(--space-5);
+  margin-bottom: var(--space-3);
+  text-decoration: none;
+  color: var(--foreground);
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.card:hover,
+.card:focus-visible {
+  background: var(--foreground);
+  color: var(--background);
+}
+
+/* Meta text inherits on hover so it doesn't stay dark grey on black. */
+.card:hover .muted,
+.card:focus-visible .muted {
+  color: inherit;
+  opacity: 0.75;
+}
+
+.card-title-row {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-4);
+  margin-bottom: var(--space-3);
+}
+
+.badge {
+  flex-shrink: 0;
+  align-self: flex-start;
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--muted-foreground);
+  color: var(--muted-foreground);
+}
+
+.badge-open {
+  background: var(--foreground);
+  color: var(--background);
+  border-color: var(--foreground);
+}
+
+.card:hover .badge,
+.card:focus-visible .badge {
+  border-color: currentColor;
+  color: inherit;
+  background: transparent;
+}
+
+/* -------------------------------------------------------------- Results --- */
+
+.result-row {
+  margin-bottom: var(--space-5);
+}
+
+.result-label {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: var(--space-1);
+  font-size: var(--text-base);
+}
+
+.result-track {
+  height: 10px;
+  background: var(--muted);
+  border: 1px solid var(--border);
+}
+
+.result-fill {
+  height: 100%;
+  background: var(--foreground);
+  transition: width var(--transition-bar) ease;
+}
+
+/* ------------------------------------------------------------- Skeleton --- */
+
+.skeleton {
+  background: var(--muted);
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+
+.skeleton-outline {
+  border: 2px solid var(--border-light);
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  50% { opacity: 0.5; }
+}
+
+/* ---------------------------------------------------------- Empty state --- */
+
+.empty-state {
+  border: 2px solid var(--border-light);
+  padding: var(--space-7) var(--space-5);
+  text-align: center;
+}
+
+/* ---------------------------------------------------------------- Toast --- */
+
+.toast {
+  position: fixed;
+  bottom: var(--space-6);
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--foreground);
+  color: var(--background);
+  padding: var(--space-4) var(--space-5);
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  font-size: 1rem;
+  z-index: 1000;
+  animation: toast-in 160ms ease-out;
+}
+
+.toast .btn-icon {
+  color: var(--background);
+}
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translate(-50%, var(--space-2)); }
+  to   { opacity: 1; transform: translate(-50%, 0); }
+}
+
+/* --------------------------------------------------------------- Mobile --- */
+
+@media (max-width: 640px) {
+  body { font-size: 1.0625rem; }
+
+  .page {
+    padding: var(--space-6) var(--space-4);
+  }
+
+  h1 { font-size: 2rem; }
+
+  .btn-primary {
+    display: block;
+    width: 100%;
+    text-align: center;
+    padding: var(--space-4);
+  }
+
+  .card-title-row {
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+}
+
+/* Honour reduced-motion: keep the state changes, drop the movement. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
