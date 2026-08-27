@@ -123,13 +123,21 @@ function Dashboard() {
                         <p className="mono-label muted">
                             {totalVotes(poll.voteCounts)} vote{totalVotes(poll.voteCounts) !== 1 ? 's' : ''} · {formatDate(poll.createdAt)}
                         </p>
-                        <button
-                            type="button"
-                            className="btn btn-link mono-label"
-                            onClick={() => duplicatePoll(poll)}
-                        >
-                            Duplicate →
-                        </button>
+                        <span style={{ display: 'flex', gap: 'var(--space-4)' }}>
+                            <Link
+                                to={`/poll/${poll.pollId}/analytics`}
+                                className="btn btn-link mono-label"
+                            >
+                                Analytics →
+                            </Link>
+                            <button
+                                type="button"
+                                className="btn btn-link mono-label"
+                                onClick={() => duplicatePoll(poll)}
+                            >
+                                Duplicate →
+                            </button>
+                        </span>
                     </div>
                 </article>
             ))}
