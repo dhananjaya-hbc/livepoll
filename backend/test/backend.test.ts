@@ -54,6 +54,21 @@ describe('DynamoDB tables', () => {
     });
   });
 
+  test('Polls table has a sparse status/expiresAt GSI for the expiry sweep', () => {
+    template.hasResourceProperties('AWS::DynamoDB::Table', {
+      TableName: 'Polls',
+      GlobalSecondaryIndexes: Match.arrayWith([
+        Match.objectLike({
+          IndexName: 'status-expiresAt-index',
+          KeySchema: [
+            { AttributeName: 'status', KeyType: 'HASH' },
+            { AttributeName: 'expiresAt', KeyType: 'RANGE' },
+          ],
+        }),
+      ]),
+    });
+  });
+
   test('Votes table is keyed on voteId', () => {
     template.hasResourceProperties('AWS::DynamoDB::Table', {
       TableName: 'Votes',
@@ -102,6 +117,25 @@ describe('AppSync API', () => {
     template.hasResourceProperties('AWS::AppSync::Resolver', {
       TypeName: typeName,
       FieldName: fieldName,
+    });
+  });
+});
+
+describe('poll expiry sweep', () => {
+  test('runs on a Node Lambda', () => {
+    template.hasResourceProperties('AWS::Lambda::Function', {
+      Handler: 'index.handler',
+      Runtime: 'nodejs22.x',
+      Environment: {
+        Variables: Match.objectLike({ INDEX_NAME: 'status-expiresAt-index' }),
+      },
+    });
+  });
+
+  test('is triggered every five minutes', () => {
+    template.hasResourceProperties('AWS::Events::Rule', {
+      ScheduleExpression: 'rate(5 minutes)',
+      State: 'ENABLED',
     });
   });
 });
