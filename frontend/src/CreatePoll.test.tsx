@@ -91,6 +91,28 @@ describe('CreatePoll', () => {
     expect(screen.queryByPlaceholderText('Option 3')).not.toBeInTheDocument()
   })
 
+  test('sends an expiry timestamp when the host picks one', async () => {
+    const user = userEvent.setup()
+    graphqlMock.mockResolvedValue({ data: { createPoll: { pollId: 'poll-123' } } })
+    renderCreatePoll()
+
+    await user.type(
+      screen.getByPlaceholderText('What do you want to ask?'),
+      'Tea or coffee?'
+    )
+    await user.type(screen.getByPlaceholderText('Option 1'), 'Tea')
+    await user.type(screen.getByPlaceholderText('Option 2'), 'Coffee')
+    await user.selectOptions(screen.getByLabelText('Poll expires in'), '3600')
+
+    const before = Math.floor(Date.now() / 1000)
+    await user.click(screen.getByRole('button', { name: /create poll/i }))
+
+    await waitFor(() => expect(graphqlMock).toHaveBeenCalled())
+    const { expiresAt } = graphqlMock.mock.calls[0][0].variables
+    expect(expiresAt).toBeGreaterThanOrEqual(before + 3600)
+    expect(expiresAt).toBeLessThanOrEqual(Math.floor(Date.now() / 1000) + 3600)
+  })
+
   test('submits a valid poll and reports the new poll id', async () => {
     const user = userEvent.setup()
     graphqlMock.mockResolvedValue({ data: { createPoll: { pollId: 'poll-123' } } })
@@ -107,7 +129,11 @@ describe('CreatePoll', () => {
     await waitFor(() => expect(onPollCreated).toHaveBeenCalledWith('poll-123'))
     expect(graphqlMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        variables: { question: 'Tea or coffee?', options: ['Tea', 'Coffee'] },
+        variables: {
+          question: 'Tea or coffee?',
+          options: ['Tea', 'Coffee'],
+          expiresAt: null,
+        },
         authMode: 'userPool',
       })
     )
