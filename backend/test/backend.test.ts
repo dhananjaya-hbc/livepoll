@@ -72,6 +72,26 @@ describe('AppSync API', () => {
     });
   });
 
+  test('the Votes table is wired as its own data source', () => {
+    template.hasResourceProperties('AWS::AppSync::DataSource', {
+      Name: 'VotesDataSource',
+    });
+  });
+
+  test('submitVote is a pipeline that records the vote before incrementing', () => {
+    template.hasResourceProperties('AWS::AppSync::Resolver', {
+      TypeName: 'Mutation',
+      FieldName: 'submitVote',
+      Kind: 'PIPELINE',
+      PipelineConfig: {
+        Functions: [
+          { 'Fn::GetAtt': [Match.stringLikeRegexp('RecordVoteFunction'), 'FunctionId'] },
+          { 'Fn::GetAtt': [Match.stringLikeRegexp('IncrementVoteCountFunction'), 'FunctionId'] },
+        ],
+      },
+    });
+  });
+
   test.each([
     ['Query', 'getPoll'],
     ['Query', 'listMyPolls'],
