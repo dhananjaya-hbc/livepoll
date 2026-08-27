@@ -4,6 +4,8 @@ import '@aws-amplify/ui-react/styles.css'
 import CreatePoll from './CreatePoll'
 import PollView from './PollView'
 import Dashboard from './Dashboard'
+import ErrorBoundary from './ErrorBoundary'
+import NotFound from './NotFound'
 
 
 function CreatePollPage() {
@@ -32,12 +34,14 @@ function PollPage() {
 function App() {
   return (
     <div style={{ minHeight: '100vh', background: 'var(--background)' }}>
-      <Routes>
-        <Route path="/" element={<CreatePollPage />} />
-        <Route path="/poll/:pollId" element={<PollPage />} />
-        <Route path="/dashboard" element={<DashboardPage />} />
-
-      </Routes>
+      <ErrorBoundary>
+        <Routes>
+          <Route path="/" element={<CreatePollPage />} />
+          <Route path="/poll/:pollId" element={<PollPage />} />
+          <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </ErrorBoundary>
     </div>
   )
 }
