@@ -1,0 +1,7 @@
+#if($ctx.error)
+  #if($ctx.error.type == "DynamoDB:ConditionalCheckFailedException")
+    $util.error("You have already voted in this poll.", "AlreadyVoted")
+  #end
+  $util.error($ctx.error.message, $ctx.error.type)
+#end
+{}
