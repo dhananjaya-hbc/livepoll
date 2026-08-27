@@ -22,6 +22,7 @@ Built as a hands-on project to learn AWS infrastructure-as-code, serverless arch
 - **Voters** open the shared link and vote — no account needed
 - **Results update live** on every connected screen the instant a vote comes in, via GraphQL subscriptions over WebSocket
 - **Hosts can close a poll** — once closed, voting is blocked for everyone, enforced at the database level, not just in the UI
+- **Hosts get a dashboard** at `/dashboard` listing every poll they've created — status, vote totals, and creation date, with click-through to live results
 - Clean 404 handling for invalid/removed poll links
 - Copy-link button for easy sharing
 - Toast notifications for error states
@@ -44,6 +45,7 @@ Built as a hands-on project to learn AWS infrastructure-as-code, serverless arch
 │              + Cognito User Pools (authenticated hosts)│
 │                                                        │
 │   Query:        getPoll                                │
+│                 listMyPolls  (Cognito only)            │
 │   Mutation:     createPoll   (Cognito only)            │
 │                 submitVote   (open polls only)         │
 │                 closePoll    (Cognito + ownership check)│
@@ -70,6 +72,8 @@ No Lambda functions are used — every resolver is a **direct AppSync-to-DynamoD
 | **Amazon Cognito** | Host authentication (sign-up, sign-in, email verification) |
 | **AWS CDK** | All infrastructure defined and deployed as code (TypeScript) |
 | **AWS IAM** | Permissions between AppSync, DynamoDB, and Cognito |
+| **Amazon S3 + CloudFront** | Static hosting and CDN delivery for the built React app |
+| **GitHub Actions + IAM OIDC** | CI/CD — deploys on push using short-lived federated credentials, no stored AWS keys |
 
 ---
 
@@ -81,6 +85,7 @@ This was one of the more interesting parts of the project to get right — enfor
 - **`closePoll`** uses a DynamoDB **conditional write** — comparing the poll's stored `hostId` against the caller's Cognito identity (`$ctx.identity.sub`). If they don't match, DynamoDB itself rejects the write with a `ConditionalCheckFailedException`, regardless of what the frontend shows or hides.
 - **`submitVote`** uses a similar conditional write checking the poll's `status` — votes are only accepted while a poll is `"open"`. A closed poll rejects new votes at the database level even if someone calls the API directly, bypassing the UI entirely.
 - **`getPoll`** and voting stay open to anonymous users via API key — no account required to participate in a poll.
+- **`listMyPolls`** never accepts a `hostId` argument — the resolver derives it from `$ctx.identity.sub`, so a host cannot craft a request that returns someone else's polls.
 
 This mixed-auth, condition-enforced pattern was more work than a single-auth-mode API, but it means the security is real rather than cosmetic — a motivated user inspecting the frontend code and calling the API directly still can't bypass the rules.
 
@@ -99,12 +104,19 @@ This mixed-auth, condition-enforced pattern was more work than a single-auth-mod
 | `status` | String | `"open"` \| `"closed"` |
 | `createdAt` | Number | Unix timestamp |
 
+**Global secondary index — `hostId-index`**
+
+| Key | Attribute | Purpose |
+|---|---|---|
+| Partition | `hostId` | Fetch one host's polls without scanning the table |
+| Sort | `createdAt` | Returns newest-first via `scanIndexForward: false` |
+
 ---
 
 ## GraphQL Schema (summary)
 
 ```graphql
-type Poll {
+type Poll @aws_api_key @aws_cognito_user_pools {
   pollId: ID!
   hostId: String!
   question: String!
@@ -116,6 +128,8 @@ type Poll {
 
 type Query {
   getPoll(pollId: ID!): Poll
+  listMyPolls: [Poll!]!
+    @aws_cognito_user_pools
 }
 
 type Mutation {
@@ -154,18 +168,25 @@ livepoll/
 │   │   └── backend-stack.ts   # DynamoDB, AppSync, Cognito, resolvers
 │   ├── graphql/
 │   │   └── schema.graphql
-│   └── resolvers/             # VTL mapping templates
-│       ├── submitVote.req.vtl
-│       ├── submitVote.res.vtl
-│       ├── closePoll.req.vtl
-│       └── closePoll.res.vtl
+│   ├── resolvers/             # VTL mapping templates
+│   │   ├── submitVote.req.vtl
+│   │   ├── submitVote.res.vtl
+│   │   ├── closePoll.req.vtl
+│   │   ├── closePoll.res.vtl
+│   │   ├── listMyPolls.req.vtl
+│   │   └── listMyPolls.res.vtl
+│   └── test/
+│       └── backend.test.ts    # CDK template assertions
 ├── frontend/                  # React app
 │   └── src/
 │       ├── CreatePoll.tsx
 │       ├── PollView.tsx
+│       ├── Dashboard.tsx
 │       ├── Toast.tsx
 │       ├── App.tsx
-│       └── amplifyconfig.ts
+│       ├── amplifyconfig.ts
+│       ├── CreatePoll.test.tsx
+│       └── PollView.test.tsx
 └── README.md
 ```
 
@@ -202,14 +223,35 @@ You'll need to update `frontend/src/amplifyconfig.ts` with your own deployed App
 
 ---
 
+## Testing
+
+**Backend** — Jest with `aws-cdk-lib/assertions`, asserting against the synthesized CloudFormation template:
+
+```bash
+cd backend
+npm test
+```
+
+Covers: DynamoDB key schemas and the `hostId-index` GSI, AppSync mixed-auth configuration, every resolver being wired to its field, and — since the schema is inlined into the template — that `createPoll`, `closePoll`, and `listMyPolls` carry `@aws_cognito_user_pools` while `getPoll` and `submitVote` stay open to anonymous callers.
+
+**Frontend** — Vitest + React Testing Library, with the Amplify GraphQL client mocked so no test touches AWS:
+
+```bash
+cd frontend
+npm test          # single run
+npm run test:watch
+```
+
+Covers `CreatePoll` (validation, add/remove options, successful submission) and `PollView` (loading skeleton, 404 state, vote buttons, results after voting, closed-poll state, subscription cleanup on unmount).
+
+---
+
 ## Roadmap
 
-- [ ] Deploy frontend live via S3 + CloudFront for a public demo link
-- [ ] Host dashboard to view/manage past polls (`listMyPolls` query)
 - [ ] Rate limiting on `submitVote` to prevent abuse
-- [ ] Automated tests (resolver unit tests, frontend component tests)
+- [ ] Optional poll expiration that auto-closes polls on a schedule
+- [ ] Custom domain + HTTPS certificate in front of CloudFront
 - [ ] Infrastructure improvements: move hardcoded config values to environment variables / SSM Parameter Store
-- [ ] CI/CD pipeline (GitHub Actions) for automated deploy on push
 
 ---
 
