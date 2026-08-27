@@ -31,7 +31,7 @@ function PollPage() {
 
 function App() {
   return (
-    <div style={{ minHeight: '100vh', background: '#FFFFFF' }}>
+    <div style={{ minHeight: '100vh', background: 'var(--background)' }}>
       <Routes>
         <Route path="/" element={<CreatePollPage />} />
         <Route path="/poll/:pollId" element={<PollPage />} />
