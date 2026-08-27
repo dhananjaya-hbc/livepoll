@@ -1,5 +1,5 @@
 import { describe, test, expect, vi, beforeEach } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import PollView from './PollView'
 
@@ -24,7 +24,11 @@ function mockPoll(overrides: Record<string, unknown> = {}) {
 
 // PollView drives a query, a subscription, and a mutation through the same
 // client.graphql call, so route each one by inspecting the operation.
-function mockGraphql(poll: Record<string, unknown> | null) {
+function mockGraphql(
+  poll: Record<string, unknown> | null,
+  onVote: () => unknown = () =>
+    Promise.resolve({ data: { submitVote: { pollId: 'poll-1' } } })
+) {
   graphqlMock.mockImplementation((operation: { query: string }) => {
     if (operation.query.includes('subscription')) {
       return { subscribe: () => ({ unsubscribe }) }
@@ -32,7 +36,7 @@ function mockGraphql(poll: Record<string, unknown> | null) {
     if (operation.query.includes('query GetPoll')) {
       return Promise.resolve({ data: { getPoll: poll } })
     }
-    return Promise.resolve({ data: { submitVote: { pollId: 'poll-1' } } })
+    return onVote()
   })
 }
 
@@ -88,6 +92,56 @@ describe('PollView', () => {
       await screen.findByText('Voting has ended for this poll.')
     ).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Tea' })).not.toBeInTheDocument()
+  })
+
+  test('sends a voter id with each vote', async () => {
+    const user = userEvent.setup()
+    mockGraphql(mockPoll())
+    render(<PollView pollId="poll-1" />)
+
+    await user.click(await screen.findByRole('button', { name: 'Tea' }))
+
+    await waitFor(() =>
+      expect(graphqlMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          variables: expect.objectContaining({
+            pollId: 'poll-1',
+            option: 'Tea',
+            voterId: expect.any(String),
+          }),
+        })
+      )
+    )
+  })
+
+  test('explains the rejection when this voter has already voted', async () => {
+    const user = userEvent.setup()
+    mockGraphql(mockPoll(), () =>
+      Promise.reject({ errors: [{ errorType: 'AlreadyVoted' }] })
+    )
+    render(<PollView pollId="poll-1" />)
+
+    await user.click(await screen.findByRole('button', { name: 'Tea' }))
+
+    expect(
+      await screen.findByText('You have already voted in this poll.')
+    ).toBeInTheDocument()
+    // Falls through to results rather than leaving them on a dead end.
+    expect(await screen.findByText('Live Results')).toBeInTheDocument()
+  })
+
+  test('marks the poll closed when the vote is rejected as closed', async () => {
+    const user = userEvent.setup()
+    mockGraphql(mockPoll(), () =>
+      Promise.reject({ errors: [{ errorType: 'PollClosed' }] })
+    )
+    render(<PollView pollId="poll-1" />)
+
+    await user.click(await screen.findByRole('button', { name: 'Tea' }))
+
+    expect(
+      await screen.findByText('This poll is closed. Voting has ended.')
+    ).toBeInTheDocument()
   })
 
   test('unsubscribes from vote updates on unmount', async () => {
