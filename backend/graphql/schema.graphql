@@ -6,6 +6,7 @@ type Poll @aws_api_key @aws_cognito_user_pools {
   voteCounts: AWSJSON!
   status: String!
   createdAt: AWSTimestamp!
+  expiresAt: AWSTimestamp
 }
 
 type Query {
@@ -15,7 +16,7 @@ type Query {
 }
 
 type Mutation {
-  createPoll(question: String!, options: [String!]!): Poll!
+  createPoll(question: String!, options: [String!]!, expiresAt: AWSTimestamp): Poll!
     @aws_cognito_user_pools
   submitVote(pollId: ID!, option: String!, voterId: String!): Poll!
   closePoll(pollId: ID!): Poll!
