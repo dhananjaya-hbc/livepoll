@@ -75,6 +75,21 @@ describe('DynamoDB tables', () => {
       KeySchema: [{ AttributeName: 'voteId', KeyType: 'HASH' }],
     });
   });
+
+  test('Votes table has a pollId/createdAt GSI so analytics avoids a scan', () => {
+    template.hasResourceProperties('AWS::DynamoDB::Table', {
+      TableName: 'Votes',
+      GlobalSecondaryIndexes: Match.arrayWith([
+        Match.objectLike({
+          IndexName: 'pollId-createdAt-index',
+          KeySchema: [
+            { AttributeName: 'pollId', KeyType: 'HASH' },
+            { AttributeName: 'createdAt', KeyType: 'RANGE' },
+          ],
+        }),
+      ]),
+    });
+  });
 });
 
 describe('AppSync API', () => {
@@ -107,9 +122,24 @@ describe('AppSync API', () => {
     });
   });
 
+  test('listPollVotes verifies poll ownership before reading any vote data', () => {
+    template.hasResourceProperties('AWS::AppSync::Resolver', {
+      TypeName: 'Query',
+      FieldName: 'listPollVotes',
+      Kind: 'PIPELINE',
+      PipelineConfig: {
+        Functions: [
+          { 'Fn::GetAtt': [Match.stringLikeRegexp('VerifyPollOwnerFunction'), 'FunctionId'] },
+          { 'Fn::GetAtt': [Match.stringLikeRegexp('ListPollVotesFunction'), 'FunctionId'] },
+        ],
+      },
+    });
+  });
+
   test.each([
     ['Query', 'getPoll'],
     ['Query', 'listMyPolls'],
+    ['Query', 'listPollVotes'],
     ['Mutation', 'createPoll'],
     ['Mutation', 'submitVote'],
     ['Mutation', 'closePoll'],
@@ -141,7 +171,7 @@ describe('poll expiry sweep', () => {
 });
 
 describe('schema authorization', () => {
-  test.each(['createPoll', 'closePoll', 'listMyPolls'])(
+  test.each(['createPoll', 'closePoll', 'listMyPolls', 'listPollVotes'])(
     '%s requires a Cognito session',
     (field) => {
       expect(lineAfterField(field)).toContain('@aws_cognito_user_pools');
