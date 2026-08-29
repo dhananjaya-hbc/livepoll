@@ -367,6 +367,13 @@ label {
   margin: var(--space-7) 0 var(--space-4);
 }
 
+.action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-bottom: var(--space-6);
+}
+
 .stat-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
