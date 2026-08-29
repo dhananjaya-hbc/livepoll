@@ -9,6 +9,13 @@ import {
     timeToFirstVote,
     type VoteRecord,
 } from './pollAnalytics'
+import {
+    buildResultRows,
+    buildResultsCsv,
+    buildSummaryText,
+    downloadFile,
+    toFilenameStem,
+} from './exportResults'
 
 const getPollQuery = /* GraphQL */ `
   query GetPoll($pollId: ID!) {
@@ -57,6 +64,7 @@ function Analytics({ pollId }: AnalyticsProps) {
     const [votes, setVotes] = useState<VoteRecord[]>([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
+    const [copied, setCopied] = useState(false)
 
     useEffect(() => {
         async function load() {
@@ -124,6 +132,24 @@ function Analytics({ pollId }: AnalyticsProps) {
 
     const counts: Record<string, number> = JSON.parse(poll.voteCounts || '{}')
     const totalVotes = Object.values(counts).reduce((sum, n) => sum + n, 0)
+    const resultRows = buildResultRows(poll.options, counts)
+    const pollUrl = `${window.location.origin}/poll/${pollId}`
+
+    function handleExportCsv() {
+        downloadFile(
+            `${toFilenameStem(poll!.question)}-results.csv`,
+            buildResultsCsv(resultRows),
+            'text/csv;charset=utf-8'
+        )
+    }
+
+    function handleCopySummary() {
+        const summary = buildSummaryText(poll!.question, resultRows, poll!.status, pollUrl)
+        navigator.clipboard.writeText(summary).then(() => {
+            setCopied(true)
+            setTimeout(() => setCopied(false), 2000)
+        })
+    }
     const buckets = bucketVotes(poll.createdAt, votes)
     const peak = peakBucket(buckets)
     const firstVote = timeToFirstVote(poll.createdAt, votes)
@@ -137,7 +163,16 @@ function Analytics({ pollId }: AnalyticsProps) {
                     ← My Polls
                 </Link>
             </div>
-            <h1 style={{ marginBottom: 'var(--space-6)' }}>{poll.question}</h1>
+            <h1 style={{ marginBottom: 'var(--space-5)' }}>{poll.question}</h1>
+
+            <div className="action-row">
+                <button type="button" className="btn btn-ghost mono-label" onClick={handleExportCsv}>
+                    Export CSV →
+                </button>
+                <button type="button" className="btn btn-ghost mono-label" onClick={handleCopySummary}>
+                    {copied ? '✓ Summary Copied' : 'Copy Summary →'}
+                </button>
+            </div>
 
             <dl className="stat-grid">
                 <div className="stat">
