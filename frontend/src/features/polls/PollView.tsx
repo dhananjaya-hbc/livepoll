@@ -1,47 +1,9 @@
 import { useEffect, useState } from 'react'
-import { generateClient } from 'aws-amplify/api'
-import Toast from './Toast'
+import Toast from '../../shared/components/Toast'
+import { graphqlErrorType } from '../../shared/api/graphqlClient'
+import { parseVoteCounts, type PollStatus } from '../../shared/types/poll'
+import { closePoll, getPoll, submitVote, subscribeToVoteUpdates } from './pollsApi'
 import { getVoterId } from './voterId'
-
-const getPollQuery = /* GraphQL */ `
-  query GetPoll($pollId: ID!) {
-    getPoll(pollId: $pollId) {
-      pollId
-      question
-      options
-      voteCounts
-      status
-      expiresAt
-    }
-  }
-`
-
-const submitVoteMutation = /* GraphQL */ `
-  mutation SubmitVote($pollId: ID!, $option: String!, $voterId: String!) {
-    submitVote(pollId: $pollId, option: $option, voterId: $voterId) {
-      pollId
-      voteCounts
-    }
-  }
-`
-
-const onVoteUpdateSubscription = /* GraphQL */ `
-  subscription OnVoteUpdate($pollId: ID!) {
-    onVoteUpdate(pollId: $pollId) {
-      pollId
-      voteCounts
-    }
-  }
-`
-
-const closePollMutation = /* GraphQL */ `
-  mutation ClosePoll($pollId: ID!) {
-    closePoll(pollId: $pollId) {
-      pollId
-      status
-    }
-  }
-`
 
 function formatRemaining(seconds: number): string {
     if (seconds <= 0) return 'Voting has ended'
@@ -53,11 +15,6 @@ function formatRemaining(seconds: number): string {
     if (hours > 0) return `Closes in ${hours}h ${minutes}m`
     if (minutes > 0) return `Closes in ${minutes}m ${secs}s`
     return `Closes in ${secs}s`
-}
-
-// AppSync reports resolver $util.error() calls as a typed GraphQL error.
-function graphqlErrorType(err: unknown): string | undefined {
-    return (err as { errors?: { errorType?: string }[] } | null)?.errors?.[0]?.errorType
 }
 
 interface PollViewProps {
@@ -74,7 +31,7 @@ function PollView({ pollId }: PollViewProps) {
     const [notFound, setNotFound] = useState(false)
     const [copied, setCopied] = useState(false)
     const [toastMessage, setToastMessage] = useState<string | null>(null)
-    const [pollStatus, setPollStatus] = useState<string>('open')
+    const [pollStatus, setPollStatus] = useState<PollStatus>('open')
     const [closing, setClosing] = useState(false)
     const [expiresAt, setExpiresAt] = useState<number | null>(null)
     const [now, setNow] = useState(() => Math.floor(Date.now() / 1000))
@@ -83,40 +40,22 @@ function PollView({ pollId }: PollViewProps) {
     useEffect(() => {
         async function loadPoll() {
             try {
-                const client = generateClient()
-                const response = await client.graphql({
-                    query: getPollQuery,
-                    variables: { pollId },
-                    authMode: 'apiKey',
-                }) as {
-                    data: {
-                        getPoll: {
-                            question: string
-                            options: string[]
-                            voteCounts: string
-                            status: string
-                            expiresAt: number | null
-                        } | null
-                    }
-                }
-
-                const poll = response.data.getPoll
+                const poll = await getPoll(pollId)
 
                 if (!poll) {
                     setNotFound(true)
-                    setLoading(false)
                     return
                 }
 
                 setQuestion(poll.question)
                 setOptions(poll.options)
-                setVoteCounts(JSON.parse(poll.voteCounts || '{}'))
+                setVoteCounts(parseVoteCounts(poll.voteCounts))
                 setPollStatus(poll.status)
                 setExpiresAt(poll.expiresAt ?? null)
-                setLoading(false)
             } catch (err) {
                 console.error('Failed to load poll:', err)
                 setNotFound(true)
+            } finally {
                 setLoading(false)
             }
         }
@@ -125,25 +64,13 @@ function PollView({ pollId }: PollViewProps) {
 
     // Subscribe to live vote updates
     useEffect(() => {
-        const client = generateClient()
-        const sub = client
-            .graphql({
-                query: onVoteUpdateSubscription,
-                variables: { pollId },
-                authMode: 'apiKey',
-            })
-            // @ts-expect-error - subscription returns an Observable, not a Promise
-            .subscribe({
-                next: ({ data }: { data?: { onVoteUpdate?: { voteCounts: string } } }) => {
-                    const updated = data?.onVoteUpdate
-                    if (updated) {
-                        setVoteCounts(JSON.parse(updated.voteCounts || '{}'))
-                    }
-                },
-                error: (err: unknown) => console.error('Subscription error:', err),
-            })
+        const subscription = subscribeToVoteUpdates(
+            pollId,
+            (voteCounts) => setVoteCounts(parseVoteCounts(voteCounts)),
+            (err) => console.error('Subscription error:', err)
+        )
 
-        return () => sub.unsubscribe()
+        return () => subscription.unsubscribe()
     }, [pollId])
 
     // Tick the countdown, and flip to closed the moment the deadline passes — the
@@ -167,12 +94,7 @@ function PollView({ pollId }: PollViewProps) {
     async function handleVote(option: string) {
         setSubmitting(true)
         try {
-            const client = generateClient()
-            await client.graphql({
-                query: submitVoteMutation,
-                variables: { pollId, option, voterId: getVoterId() },
-                authMode: 'apiKey',
-            })
+            await submitVote({ pollId, option, voterId: getVoterId() })
             setHasVoted(true)
         } catch (err) {
             console.error('Vote failed:', err)
@@ -195,12 +117,7 @@ function PollView({ pollId }: PollViewProps) {
     async function handleClosePoll() {
         setClosing(true)
         try {
-            const client = generateClient()
-            await client.graphql({
-                query: closePollMutation,
-                variables: { pollId },
-                authMode: 'userPool',
-            })
+            await closePoll(pollId)
             setPollStatus('closed')
             setToastMessage('Poll closed.')
         } catch (err) {

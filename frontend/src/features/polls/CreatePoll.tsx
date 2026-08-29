@@ -1,19 +1,8 @@
 import { useState } from 'react'
-import { generateClient } from 'aws-amplify/api'
-import Toast from './Toast'
+import Toast from '../../shared/components/Toast'
+import { createPoll } from './pollsApi'
 import { Link, useLocation } from 'react-router-dom'
 
-
-const createPollMutation = /* GraphQL */ `
-  mutation CreatePoll($question: String!, $options: [String!]!, $expiresAt: AWSTimestamp) {
-    createPoll(question: $question, options: $options, expiresAt: $expiresAt) {
-      pollId
-      question
-      options
-      status
-    }
-  }
-`
 
 const EXPIRY_OPTIONS = [
     { label: 'Never', seconds: 0 },
@@ -80,19 +69,14 @@ function CreatePoll({ onPollCreated }: CreatePollProps) {
 
         setLoading(true)
         try {
-            const client = generateClient()   // ← make sure this line exists
-            const response = await client.graphql({
-                query: createPollMutation,
-                variables: {
-                    question: question.trim(),
-                    options: trimmedOptions,
-                    // null tells the resolver to omit the attribute entirely, which
-                    // keeps the poll out of the sparse expiry index.
-                    expiresAt: expiresIn > 0 ? Math.floor(Date.now() / 1000) + expiresIn : null,
-                },
-                authMode: 'userPool',
-            }) as { data: { createPoll: { pollId: string } } }
-            onPollCreated(response.data.createPoll.pollId)
+            const pollId = await createPoll({
+                question: question.trim(),
+                options: trimmedOptions,
+                // null tells the resolver to omit the attribute entirely, which
+                // keeps the poll out of the sparse expiry index.
+                expiresAt: expiresIn > 0 ? Math.floor(Date.now() / 1000) + expiresIn : null,
+            })
+            onPollCreated(pollId)
         } catch (err) {
             setError('Something went wrong creating the poll.')
             setToastMessage('Could not create your poll. Please check your connection and try again.')

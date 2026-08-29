@@ -4,7 +4,7 @@ import {
     buildResultsCsv,
     buildSummaryText,
     toFilenameStem,
-} from './exportResults'
+} from '../exportResults'
 
 describe('buildResultRows', () => {
     test('keeps the poll option order and fills in missing counts', () => {

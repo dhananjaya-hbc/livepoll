@@ -2,9 +2,9 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import { Amplify } from 'aws-amplify'
-import './index.css'
+import './shared/styles/index.css'
 import App from './App.tsx'
-import { amplifyConfig } from './amplifyconfig.ts'
+import { amplifyConfig } from './config/amplify.ts'
 
 Amplify.configure(amplifyConfig)
 

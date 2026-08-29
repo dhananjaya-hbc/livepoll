@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { generateClient } from 'aws-amplify/api'
-import { logError } from './errorLogging'
+import { logError } from '../../shared/lib/errorLogging'
+import { parseVoteCounts, totalVotes as sumVotes } from '../../shared/types/poll'
+import { getPollDetail, listPollVotes, type PollDetail } from './analyticsApi'
 import {
     bucketVotes,
     formatDuration,
@@ -16,35 +17,6 @@ import {
     downloadFile,
     toFilenameStem,
 } from './exportResults'
-
-const getPollQuery = /* GraphQL */ `
-  query GetPoll($pollId: ID!) {
-    getPoll(pollId: $pollId) {
-      question
-      options
-      voteCounts
-      status
-      createdAt
-    }
-  }
-`
-
-const listPollVotesQuery = /* GraphQL */ `
-  query ListPollVotes($pollId: ID!) {
-    listPollVotes(pollId: $pollId) {
-      option
-      createdAt
-    }
-  }
-`
-
-interface PollDetail {
-    question: string
-    options: string[]
-    voteCounts: string
-    status: string
-    createdAt: number
-}
 
 interface AnalyticsProps {
     pollId: string
@@ -69,28 +41,18 @@ function Analytics({ pollId }: AnalyticsProps) {
     useEffect(() => {
         async function load() {
             try {
-                const client = generateClient()
-                // Both run under userPool auth: listPollVotes rejects non-owners.
-                const [pollResponse, votesResponse] = await Promise.all([
-                    client.graphql({
-                        query: getPollQuery,
-                        variables: { pollId },
-                        authMode: 'userPool',
-                    }) as Promise<{ data: { getPoll: PollDetail | null } }>,
-                    client.graphql({
-                        query: listPollVotesQuery,
-                        variables: { pollId },
-                        authMode: 'userPool',
-                    }) as Promise<{ data: { listPollVotes: VoteRecord[] } }>,
+                const [pollDetail, pollVotes] = await Promise.all([
+                    getPollDetail(pollId),
+                    listPollVotes(pollId),
                 ])
 
-                if (!pollResponse.data.getPoll) {
+                if (!pollDetail) {
                     setError('That poll no longer exists.')
                     return
                 }
 
-                setPoll(pollResponse.data.getPoll)
-                setVotes(votesResponse.data.listPollVotes)
+                setPoll(pollDetail)
+                setVotes(pollVotes)
             } catch (err) {
                 logError(err, { source: 'Analytics.load', pollId })
                 setError('You can only view analytics for polls you created.')
@@ -130,8 +92,8 @@ function Analytics({ pollId }: AnalyticsProps) {
         )
     }
 
-    const counts: Record<string, number> = JSON.parse(poll.voteCounts || '{}')
-    const totalVotes = Object.values(counts).reduce((sum, n) => sum + n, 0)
+    const counts = parseVoteCounts(poll.voteCounts)
+    const totalVotes = sumVotes(counts)
     const resultRows = buildResultRows(poll.options, counts)
     const pollUrl = `${window.location.origin}/poll/${pollId}`
 

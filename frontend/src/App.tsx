@@ -1,12 +1,12 @@
 import { Routes, Route, useNavigate, useParams } from 'react-router-dom'
 import { Authenticator } from '@aws-amplify/ui-react'
 import '@aws-amplify/ui-react/styles.css'
-import CreatePoll from './CreatePoll'
-import PollView from './PollView'
-import Dashboard from './Dashboard'
-import Analytics from './Analytics'
-import ErrorBoundary from './ErrorBoundary'
-import NotFound from './NotFound'
+import CreatePoll from './features/polls/CreatePoll'
+import PollView from './features/polls/PollView'
+import Dashboard from './features/dashboard/Dashboard'
+import Analytics from './features/analytics/Analytics'
+import ErrorBoundary from './shared/components/ErrorBoundary'
+import NotFound from './shared/components/NotFound'
 
 
 function CreatePollPage() {

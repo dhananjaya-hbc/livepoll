@@ -5,7 +5,7 @@ import {
     peakBucket,
     timeToFirstVote,
     type VoteRecord,
-} from './pollAnalytics'
+} from '../pollAnalytics'
 
 function votesAt(...offsets: number[]): VoteRecord[] {
     return offsets.map((offset) => ({ option: 'Tea', createdAt: 1000 + offset }))

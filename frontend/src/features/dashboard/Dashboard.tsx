@@ -1,28 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { generateClient } from 'aws-amplify/api'
-
-const listMyPollsQuery = /* GraphQL */ `
-  query ListMyPolls {
-    listMyPolls {
-      pollId
-      question
-      options
-      status
-      voteCounts
-      createdAt
-    }
-  }
-`
-
-interface PollSummary {
-    pollId: string
-    question: string
-    options: string[]
-    status: string
-    voteCounts: string
-    createdAt: number
-}
+import { parseVoteCounts, totalVotes as sumVotes } from '../../shared/types/poll'
+import { listMyPolls, type PollSummary } from './dashboardApi'
 
 function Dashboard() {
     const [polls, setPolls] = useState<PollSummary[]>([])
@@ -40,12 +19,7 @@ function Dashboard() {
     useEffect(() => {
         async function loadPolls() {
             try {
-                const client = generateClient()
-                const response = await client.graphql({
-                    query: listMyPollsQuery,
-                    authMode: 'userPool',
-                }) as { data: { listMyPolls: PollSummary[] } }
-                setPolls(response.data.listMyPolls)
+                setPolls(await listMyPolls())
             } catch (err) {
                 console.error('Failed to load polls:', err)
                 setError(true)
@@ -57,8 +31,7 @@ function Dashboard() {
     }, [])
 
     function totalVotes(voteCounts: string) {
-        const counts: Record<string, number> = JSON.parse(voteCounts || '{}')
-        return Object.values(counts).reduce((sum, n) => sum + n, 0)
+        return sumVotes(parseVoteCounts(voteCounts))
     }
 
     function formatDate(epochSeconds: number) {

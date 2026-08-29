@@ -2,7 +2,7 @@ import { describe, test, expect, vi, beforeEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom'
-import Dashboard from './Dashboard'
+import Dashboard from '../Dashboard'
 
 const { graphqlMock } = vi.hoisted(() => ({ graphqlMock: vi.fn() }))
 

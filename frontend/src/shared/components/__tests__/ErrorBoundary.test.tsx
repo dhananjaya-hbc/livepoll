@@ -1,8 +1,8 @@
 import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
-import ErrorBoundary from './ErrorBoundary'
-import NotFound from './NotFound'
+import ErrorBoundary from '../ErrorBoundary'
+import NotFound from '../NotFound'
 
 function Boom(): never {
     throw new Error('kaboom')
