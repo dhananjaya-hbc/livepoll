@@ -1,5 +1,6 @@
 import { describe, test, expect, vi, beforeEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import Analytics from './Analytics'
 
@@ -71,6 +72,48 @@ describe('Analytics', () => {
             'aria-valuenow',
             '67'
         )
+    })
+
+    test('exports results as a downloadable CSV file', async () => {
+        const user = userEvent.setup()
+        const createObjectURL = vi.fn(() => 'blob:fake')
+        const revokeObjectURL = vi.fn()
+        vi.stubGlobal('URL', { ...URL, createObjectURL, revokeObjectURL })
+        // jsdom does not implement navigation, so stop the anchor from acting.
+        const clickSpy = vi
+            .spyOn(HTMLAnchorElement.prototype, 'click')
+            .mockImplementation(() => {})
+
+        mockGraphql({ votes: [] })
+        renderAnalytics()
+
+        await user.click(await screen.findByRole('button', { name: /export csv/i }))
+
+        expect(createObjectURL).toHaveBeenCalled()
+        expect(clickSpy).toHaveBeenCalled()
+        expect(revokeObjectURL).toHaveBeenCalledWith('blob:fake')
+
+        clickSpy.mockRestore()
+        vi.unstubAllGlobals()
+    })
+
+    test('copies a pasteable summary to the clipboard', async () => {
+        const user = userEvent.setup()
+        const writeText = vi.fn(() => Promise.resolve())
+        vi.stubGlobal('navigator', { ...navigator, clipboard: { writeText } })
+
+        mockGraphql({ votes: [] })
+        renderAnalytics()
+
+        await user.click(await screen.findByRole('button', { name: /copy summary/i }))
+
+        expect(writeText).toHaveBeenCalledWith(
+            expect.stringContaining('Tea or coffee?')
+        )
+        expect(writeText).toHaveBeenCalledWith(expect.stringContaining('Tea — 2 (67%)'))
+        expect(await screen.findByText('✓ Summary Copied')).toBeInTheDocument()
+
+        vi.unstubAllGlobals()
     })
 
     test('explains that a poll with no votes has no timeline yet', async () => {
